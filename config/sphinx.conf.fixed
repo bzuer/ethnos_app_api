@@ -1,0 +1,486 @@
+# Sphinx Configuration for Bibliographic API with Extended Indexes
+# Generated: 2025-08-28
+# Updated: 2025-08-28 - Added persons_index and organizations_index
+
+source works_src
+{
+    type = mysql
+    sql_host = localhost
+    sql_user = api_dev
+    sql_pass = s0urc3_v3nv
+    sql_db = data_db
+    sql_port = 3306
+
+    sql_query_pre = SET NAMES 'utf8mb4'
+    sql_query_pre = SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED
+
+    sql_query = \
+        SELECT \
+            id, \
+            title, \
+            subtitle, \
+            abstract, \
+            author_string, \
+            venue_name, \
+            doi, \
+            created_ts, \
+            year, \
+            work_type, \
+            language, \
+            open_access, \
+            peer_reviewed \
+        FROM v_sphinx_works_index
+
+    # Attributes for filtering and sorting
+    sql_attr_uint = year
+    sql_attr_uint = created_ts
+    sql_attr_uint = open_access
+    sql_attr_uint = peer_reviewed
+    sql_attr_string = work_type
+    sql_attr_string = language
+
+    # Text fields for full-text search
+    sql_field_string = title
+    sql_field_string = subtitle
+    sql_field_string = abstract
+    sql_field_string = author_string
+    sql_field_string = venue_name
+    sql_field_string = doi
+}
+
+index works_poc
+{
+    source = works_src
+    path = /home/server/api/runtime/sphinx/works_poc
+    
+    # Bibliographic-specific configuration
+    morphology = stem_en
+    charset_table = 0..9, A..Z->a..z, _, a..z
+    
+    # Enable exact word matching for DOIs, author names
+    index_exact_words = 1
+    
+    # Enable prefix/suffix search
+    min_prefix_len = 3
+    expand_keywords = 1
+    
+    # Word length limits
+    min_word_len = 2
+    
+    # HTML stripping (in case abstracts contain HTML)
+    html_strip = 1
+    html_remove_elements = style, script
+}
+
+# Real-Time index for testing RT functionality  
+index works_rt
+{
+    type = rt
+    path = /home/server/api/runtime/sphinx/works_rt
+    
+    # RT fields for bibliographic search
+    rt_field = title
+    rt_field = subtitle
+    rt_field = abstract  
+    rt_field = author_string
+    rt_field = venue_name
+    rt_field = doi
+    
+    # RT attributes for filtering
+    rt_attr_uint = year
+    rt_attr_uint = created_ts
+    rt_attr_uint = open_access
+    rt_attr_uint = peer_reviewed
+    rt_attr_string = work_type
+    rt_attr_string = language
+    
+    # Same morphology as regular index
+    morphology = stem_en
+    charset_table = 0..9, A..Z->a..z, _, a..z
+    
+    index_exact_words = 1
+    min_prefix_len = 3
+    expand_keywords = 1
+    min_word_len = 2
+    html_strip = 1
+}
+
+indexer
+{
+    mem_limit = 1024M   # Phase 2: Increased to 1GB for venues+signatures indexes
+    max_iops = 100      # Phase 2: Increased IOPS for analytical performance
+    max_iosize = 2097152 # 2MB I/O size for large venue/signature datasets
+    
+    # Logging
+    write_buffer = 8M   # Phase 2: Increased buffer for analytical workloads
+    max_file_field_buffer = 32M # For venues metadata
+}
+
+searchd
+{
+    # Network settings
+    listen = 9312
+    listen = 9306:mysql41
+    
+    # Logging
+    log = /var/log/sphinx/searchd.log
+    query_log = /var/log/sphinx/query.log  
+    query_log_format = sphinxql
+    
+    # Process settings
+    pid_file = /var/run/sphinx/searchd.pid
+    
+    # Phase 2: Performance settings optimized for analytical workloads
+    seamless_rotate = 1     # Rotation without interruption
+    preopen_indexes = 1
+    unlink_old = 1
+    max_children = 15       # Phase 2: Support more parallel analytical queries
+    
+    # Phase 2: Memory and timeout settings for large datasets
+    read_timeout = 10       # Increased for complex venue/signature queries
+    
+    # Real-time settings
+    binlog_path = /home/server/api/runtime/sphinx/binlog
+    binlog_flush = 2
+    
+    # Performance monitoring
+    query_log_min_msec = 100
+    
+    # Phase 2: Client timeout for analytical queries
+    client_timeout = 600    # 10 minutes for complex analytical operations
+    
+    # Phase 2: Memory pool settings
+    read_buffer = 1M        # Analytical query optimization
+}
+
+# =============================================================================
+# EXTENDED INDEXES FOR HIGH-PRIORITY ENDPOINTS
+# =============================================================================
+
+# Persons Search Index - High Priority Integration
+source persons_src
+{
+    type = mysql
+    sql_host = localhost
+    sql_user = api_dev
+    sql_pass = s0urc3_v3nv
+    sql_db = data_db
+    sql_port = 3306
+
+    sql_query_pre = SET NAMES 'utf8mb4'
+
+    sql_query = \
+        SELECT \
+            id, \
+            preferred_name, \
+            given_names, \
+            family_name, \
+            name_variations, \
+            orcid, \
+            lattes_id, \
+            scopus_id, \
+            created_ts, \
+            is_verified \
+        FROM v_sphinx_persons_index
+
+    # Attributes for filtering and sorting
+    sql_attr_uint = created_ts
+    sql_attr_uint = is_verified
+
+    # Text fields for full-text search
+    sql_field_string = preferred_name
+    sql_field_string = given_names
+    sql_field_string = family_name
+    sql_field_string = name_variations
+    sql_field_string = orcid
+    sql_field_string = lattes_id
+    sql_field_string = scopus_id
+}
+
+index persons_poc
+{
+    source = persons_src
+    path = /home/server/api/runtime/sphinx/persons_poc
+    
+    # Academic names-specific configuration
+    morphology = stem_en
+    charset_table = 0..9, A..Z->a..z, _, a..z, -, ., @
+    
+    # Enable exact matching for names, ORCIDs
+    index_exact_words = 1
+    
+    # Enable prefix search for partial name matching
+    min_prefix_len = 2
+    expand_keywords = 1
+    
+    # Word length limits (names can be short)
+    min_word_len = 1
+    
+    # No HTML stripping needed for names
+    html_strip = 0
+}
+
+# Organizations Search Index - High Priority Integration  
+source organizations_src
+{
+    type = mysql
+    sql_host = localhost
+    sql_user = api_dev
+    sql_pass = s0urc3_v3nv
+    sql_db = data_db
+    sql_port = 3306
+    
+    # Complete organizations data for search optimization
+    sql_query = \
+        SELECT \
+            id, \
+            name, \
+            type, \
+            COALESCE(country_code, '') as country_code, \
+            COALESCE(city, '') as city, \
+            COALESCE(ror_id, '') as ror_id, \
+            UNIX_TIMESTAMP(created_at) as created_ts \
+        FROM organizations \
+        WHERE name IS NOT NULL AND name != '' \
+        ORDER BY id ASC
+        
+    # Attributes for filtering and sorting
+    sql_attr_uint = created_ts
+    sql_attr_string = type
+    sql_attr_string = country_code
+    
+    # Text fields for full-text search
+    sql_field_string = name
+    sql_field_string = city
+    sql_field_string = ror_id
+}
+
+index organizations_poc
+{
+    source = organizations_src
+    path = /home/server/api/runtime/sphinx/organizations_poc
+    
+    # Institution names-specific configuration
+    morphology = stem_en
+    charset_table = 0..9, A..Z->a..z, _, a..z, -, ., &, (, )
+    
+    # Enable exact matching for institutional names
+    index_exact_words = 1
+    
+    # Enable prefix search for partial institution matching
+    min_prefix_len = 3
+    expand_keywords = 1
+    
+    # Word length limits
+    min_word_len = 2
+    
+    # No HTML stripping needed for institution names
+    html_strip = 0
+}
+
+source publications_src
+{
+    type = mysql
+    sql_host = localhost
+    sql_user = api_dev
+    sql_pass = s0urc3_v3nv
+    sql_db = data_db
+    sql_port = 3306
+
+    sql_query_pre = SET NAMES 'utf8mb4'
+
+    sql_query = \
+        SELECT \
+            id, \
+            work_id, \
+            work_title, \
+            work_subtitle, \
+            author_string, \
+            venue_name, \
+            doi, \
+            isbn, \
+            pages, \
+            volume, \
+            issue, \
+            source, \
+            year, \
+            open_access, \
+            peer_reviewed, \
+            created_ts \
+        FROM v_sphinx_publications_index
+
+    sql_attr_uint = work_id
+    sql_attr_uint = year
+    sql_attr_uint = open_access
+    sql_attr_uint = peer_reviewed
+    sql_attr_uint = created_ts
+    sql_field_string = work_title
+    sql_field_string = work_subtitle
+    sql_field_string = author_string
+    sql_field_string = venue_name
+    sql_field_string = doi
+    sql_field_string = isbn
+    sql_field_string = pages
+    sql_field_string = volume
+    sql_field_string = issue
+    sql_field_string = source
+}
+
+index publications_poc
+{
+    source = publications_src
+    path = /home/server/api/runtime/sphinx/publications_poc
+
+    morphology = stem_en
+    charset_table = 0..9, A..Z->a..z, _, a..z, -, ., &, :, (, )
+    index_exact_words = 1
+    min_prefix_len = 3
+    expand_keywords = 1
+    min_word_len = 2
+    html_strip = 0
+}
+
+# =============================================================================
+# PHASE 2 - ANALYTICAL OPTIMIZATION INDEXES
+# =============================================================================
+
+# Venues Metrics Index - Solve 8.1s performance bottleneck
+source venues_metrics_src
+{
+    type = mysql
+    sql_host = localhost
+    sql_user = api_dev
+    sql_pass = s0urc3_v3nv
+    sql_db = data_db
+    sql_port = 3306
+    
+    # Optimized venue metrics query with pre-calculated statistics
+    sql_query = \
+        SELECT \
+            v.id, \
+            v.name, \
+            v.type, \
+            COALESCE(v.issn, '') as issn, \
+            COALESCE(v.eissn, '') as eissn, \
+            COALESCE(v.scopus_source_id, '') as scopus_source_id, \
+            v.publisher_id, \
+            COALESCE(v.impact_factor, 0.0) as impact_factor, \
+            COUNT(DISTINCT p.work_id) as works_count, \
+            COUNT(DISTINCT a.person_id) as unique_authors, \
+            MIN(COALESCE(p.year, 2024)) as first_publication_year, \
+            MAX(COALESCE(p.year, 2024)) as latest_publication_year, \
+            COALESCE(pub.name, '') as publisher_name, \
+            UNIX_TIMESTAMP(v.created_at) as created_ts \
+        FROM venues v \
+        LEFT JOIN publications p ON v.id = p.venue_id \
+        LEFT JOIN authorships a ON p.work_id = a.work_id \
+        LEFT JOIN publishers pub ON v.publisher_id = pub.id \
+        GROUP BY v.id, pub.name \
+        ORDER BY works_count DESC, v.id ASC
+        
+    # Attributes for filtering and sorting
+    sql_attr_uint = publisher_id
+    sql_attr_uint = works_count
+    sql_attr_uint = unique_authors
+    sql_attr_uint = first_publication_year
+    sql_attr_uint = latest_publication_year
+    sql_attr_uint = created_ts
+    sql_attr_float = impact_factor
+    sql_attr_string = type
+    
+    # Text fields for full-text search
+    sql_field_string = name
+    sql_field_string = issn
+    sql_field_string = eissn
+    sql_field_string = scopus_source_id
+    sql_field_string = publisher_name
+}
+
+index venues_metrics_poc
+{
+    source = venues_metrics_src
+    path = /home/server/api/runtime/sphinx/venues_metrics_poc
+    
+    # Venue-specific configuration for academic journals
+    morphology = stem_en
+    charset_table = 0..9, A..Z->a..z, _, a..z, -, ., &, :, (, )
+    
+    # Enable exact matching for ISSN, journal names
+    index_exact_words = 1
+    
+    # Enable prefix search for partial venue matching
+    min_prefix_len = 3
+    expand_keywords = 1
+    
+    # Word length limits for academic titles
+    min_word_len = 2
+    
+    # No HTML stripping needed for venue names
+    html_strip = 0
+}
+
+# Signatures Index - Improve author disambiguation performance
+source signatures_src
+{
+    type = mysql
+    sql_host = localhost
+    sql_user = api_dev
+    sql_pass = s0urc3_v3nv
+    sql_db = data_db
+    sql_port = 3306
+    
+    # Alternative signatures query using authorships data
+    sql_query = \
+        SELECT \
+            ROW_NUMBER() OVER (ORDER BY p.id, a.id) as id, \
+            COALESCE(a.author_name, p.preferred_name, '') as signature, \
+            p.id as person_id, \
+            COALESCE(p.preferred_name, '') as person_name, \
+            COALESCE(p.given_names, '') as given_names, \
+            COALESCE(p.family_name, '') as family_name, \
+            COALESCE(p.is_verified, 0) as is_verified, \
+            UNIX_TIMESTAMP(p.created_at) as created_ts, \
+            LENGTH(COALESCE(a.author_name, p.preferred_name, '')) as signature_length \
+        FROM persons p \
+        LEFT JOIN authorships a ON p.id = a.person_id \
+        WHERE (a.author_name IS NOT NULL OR p.preferred_name IS NOT NULL) \
+        AND LENGTH(COALESCE(a.author_name, p.preferred_name, '')) > 1 \
+        GROUP BY p.id, a.author_name, p.preferred_name, p.given_names, p.family_name, p.is_verified, p.created_at, a.id \
+        ORDER BY p.is_verified DESC, p.id ASC \
+        LIMIT 100000
+        
+    # Attributes for filtering and sorting
+    sql_attr_uint = person_id
+    sql_attr_uint = is_verified
+    sql_attr_uint = created_ts
+    sql_attr_uint = signature_length
+    
+    # Text fields for full-text search and disambiguation
+    sql_field_string = signature
+    sql_field_string = person_name
+    sql_field_string = given_names
+    sql_field_string = family_name
+}
+
+index signatures_poc
+{
+    source = signatures_src
+    path = /home/server/api/runtime/sphinx/signatures_poc
+    
+    # Author signature-specific configuration
+    morphology = stem_en
+    charset_table = 0..9, A..Z->a..z, _, a..z, -, ., &, U+002C, ;
+    
+    # Enable exact matching for author signatures
+    index_exact_words = 1
+    
+    # Enable prefix search for partial name matching
+    min_prefix_len = 2
+    expand_keywords = 1
+    
+    # Word length limits (author names can be short)
+    min_word_len = 1
+    
+    # No HTML stripping needed for names
+    html_strip = 0
+}

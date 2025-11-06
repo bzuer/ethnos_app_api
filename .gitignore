@@ -1,0 +1,33 @@
+# Logs and runtime artifacts
+logs/
+!logs/.gitkeep
+runtime/
+*.log
+*.log.*
+
+# Test coverage
+coverage/
+
+# Python virtual envs
+venv/
+
+# Backups and large binary artifacts
+backup/
+!backup/README.md
+
+# Local environment files (keep examples only)
+.env
+
+# Database dumps
+database/*.sql
+!database/README.md
+
+# Node-related
+node_modules/
+*.tgz
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

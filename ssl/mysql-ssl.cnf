@@ -1,0 +1,20 @@
+[mysqld]
+# SSL Configuration for MariaDB
+ssl-ca = /etc/mysql/mysql-server-cert.pem
+ssl-cert = /etc/mysql/mysql-server-cert.pem
+ssl-key = /etc/mysql/mysql-server-key.pem
+
+# SSL is optional by default, but can be required
+# require_secure_transport = ON
+
+[mysql]
+# Client SSL Configuration
+ssl-cert = /etc/mysql/mysql-client-cert.pem  
+ssl-key = ssl/mysql-client-key.pem
+ssl-ca = /etc/mysql/mysql-server-cert.pem
+
+[client]
+# Default client SSL
+ssl-cert = /etc/mysql/mysql-client-cert.pem
+ssl-key = ssl/mysql-client-key.pem  
+ssl-ca = /etc/mysql/mysql-server-cert.pem

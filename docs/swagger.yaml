@@ -1,0 +1,5984 @@
+openapi: 3.0.0
+info:
+  title: Ethnos.app Academic Bibliography API
+  version: 2.0.0
+  description: "
+
+    REST API for academic bibliography: search, works, persons,
+    organizations, venues, courses, citations, collaborations and health.
+
+
+    Highlights
+
+    - Public endpoints; selected admin/metrics routes require
+    'x-access-key'.
+
+    - Standard response envelope: { status, data, pagination?, meta? }.
+
+    - Pagination supports page/limit and offset/limit.
+
+    - Identifiers: DOI, ORCID, ROR, ISSN.
+
+
+    Notes
+
+    - Rate limiting is configurable via environment and enabled by default.
+
+    - Performance and dataset size vary by deployment.
+
+    \        "
+  contact:
+    name: Bruno Cesar Cunha Cruz, PhD Student
+  license:
+    name: MIT License
+    url: https://opensource.org/licenses/MIT
+  x-developer-orcid: 0000-0001-8652-2333
+  x-institution: PPGAS/MN/UFRJ
+servers:
+  - url: https://api.ethnos.app
+    description: Production API Server - Enterprise-ready academic research infrastructure
+  - url: http://localhost:1210
+    description: Development Server - Local testing and development environment
+externalDocs:
+  description: Ethnos.app Platform Documentation
+  url: https://ethnos.app
+components:
+  securitySchemes:
+    XAccessKey:
+      type: apiKey
+      in: header
+      name: x-access-key
+      description: Internal access key required for protected endpoints (security,
+        dashboard, health except /live)
+  schemas:
+    SuccessEnvelope:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          description: Response payload. Varies per endpoint.
+        pagination:
+          $ref: "#/components/schemas/PaginationMeta"
+        meta:
+          type: object
+          additionalProperties: true
+      required:
+        - status
+        - data
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 6894
+        limit:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+        pages:
+          type: integer
+          example: 345
+        hasNext:
+          type: boolean
+          example: true
+        hasPrev:
+          type: boolean
+          example: false
+    PerformanceMeta:
+      type: object
+      properties:
+        engine:
+          type: string
+          example: MariaDB
+        query_type:
+          type: string
+          example: search
+        controller_time_ms:
+          type: integer
+          example: 42
+        elapsed_ms:
+          type: integer
+          example: 77
+    Error:
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: string
+          example: error
+        message:
+          type: string
+          example: Resource not found
+        code:
+          type: string
+          example: NOT_FOUND
+        timestamp:
+          type: string
+          format: date-time
+    Work:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 123456
+          description: Unique identifier for the work
+        title:
+          type: string
+          example: "Machine Learning Applications in Academic Research: A Comprehensive
+            Survey"
+          description: Primary title of the work
+        subtitle:
+          type: string
+          nullable: true
+          example: An Analysis of Current Trends and Future Directions
+          description: Subtitle of the work
+        abstract:
+          type: string
+          nullable: true
+          example: This paper presents a comprehensive survey of machine learning
+            applications in academic research, covering methodologies, tools,
+            and emerging trends across multiple disciplines. We analyze current
+            approaches, identify gaps, and propose future research directions.
+          description: Abstract or summary of the work
+        type:
+          type: string
+          enum:
+            - ARTICLE
+            - BOOK
+            - CHAPTER
+            - THESIS
+            - CONFERENCE
+            - REPORT
+            - DATASET
+            - OTHER
+          example: ARTICLE
+          description: Type of academic work
+        publication_year:
+          type: integer
+          nullable: true
+          example: 2023
+          description: Publication year for list items (also present as publication.year
+            in details)
+        language:
+          type: string
+          nullable: true
+          example: en
+          description: ISO 639 language code
+        open_access:
+          type: boolean
+          nullable: true
+          description: Open access flag (present in list items or publication.open_access
+            in details)
+        peer_reviewed:
+          type: boolean
+          nullable: true
+          description: Peer reviewed flag (present in list items or
+            publication.peer_reviewed in details)
+        publication:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              nullable: true
+              description: Publication record ID
+            year:
+              type: integer
+              nullable: true
+              example: 2023
+              description: Publication year
+            volume:
+              type: string
+              nullable: true
+              example: "15"
+              description: Volume number
+            issue:
+              type: string
+              nullable: true
+              example: "3"
+              description: Issue number
+            pages:
+              type: string
+              nullable: true
+              example: 1-25
+              description: Page range
+            doi:
+              type: string
+              nullable: true
+              example: 10.1038/s42256-023-00123-4
+              description: Digital Object Identifier from publications table
+            peer_reviewed:
+              type: boolean
+              example: true
+              description: Peer review status
+            publication_date:
+              type: string
+              format: date
+              nullable: true
+              example: 2023-06-15
+              description: Exact publication date
+          description: Publication metadata
+        venue:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              example: 1
+              description: Venue ID
+            name:
+              type: string
+              example: Nature Machine Intelligence
+              description: Venue name
+            type:
+              type: string
+              enum:
+                - JOURNAL
+                - CONFERENCE
+                - REPOSITORY
+                - BOOK_SERIES
+              example: JOURNAL
+              description: Venue type
+            issn:
+              type: string
+              nullable: true
+              example: 2522-5839
+              description: ISSN identifier
+            eissn:
+              type: string
+              nullable: true
+              example: 2522-5847
+              description: Electronic ISSN
+            scopus_source_id:
+              type: string
+              nullable: true
+              example: "21100865475"
+              description: Scopus source ID
+          description: Publication venue information
+        publisher:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              example: 13
+              description: Publisher ID
+            name:
+              type: string
+              example: Springer Nature
+              description: Publisher name
+            type:
+              type: string
+              enum:
+                - ACADEMIC
+                - COMMERCIAL
+                - UNIVERSITY
+                - SOCIETY
+                - GOVERNMENT
+                - OTHER
+              example: COMMERCIAL
+              description: Publisher type
+            country:
+              type: string
+              nullable: true
+              example: United Kingdom
+              description: Publisher country
+            website:
+              type: string
+              nullable: true
+              example: https://www.springernature.com
+              description: Publisher website
+          description: Publisher information
+        author_count:
+          type: integer
+          example: 3
+          description: Number of authors
+        authors_preview:
+          type: array
+          items:
+            type: string
+          example:
+            - Maria S. Santos
+            - João C. Lima
+            - Ana P. Costa
+          description: Preview of up to 3 author names (list items)
+        authors:
+          type: array
+          items:
+            $ref: "#/components/schemas/Author"
+          description: Detailed list of authors (work details)
+        citations:
+          type: object
+          description: Inline citations and references for the work
+          properties:
+            cited_by:
+              type: array
+              items:
+                type: object
+                properties:
+                  work_id:
+                    type: integer
+                  title:
+                    type: string
+                    nullable: true
+                  authors:
+                    type: string
+                    nullable: true
+                  publication_year:
+                    type: integer
+                    nullable: true
+                  venue_name:
+                    type: string
+                    nullable: true
+                  citation_type:
+                    type: string
+                    nullable: true
+                  citation_context:
+                    type: string
+                    nullable: true
+            references:
+              type: array
+              items:
+                type: object
+                properties:
+                  work_id:
+                    type: integer
+                  title:
+                    type: string
+                    nullable: true
+                  authors:
+                    type: string
+                    nullable: true
+                  publication_year:
+                    type: integer
+                    nullable: true
+                  venue_name:
+                    type: string
+                    nullable: true
+                  doi:
+                    type: string
+                    nullable: true
+                  citation_type:
+                    type: string
+                    nullable: true
+                  citation_context:
+                    type: string
+                    nullable: true
+        first_author:
+          type: string
+          nullable: true
+          example: Maria S. Santos
+          description: First author display name (list items)
+        identifiers:
+          type: object
+          description: External identifiers for this work
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            doi:
+              - 10.1038/s42256-023-00123-4
+            pmid:
+              - "37845123"
+            arxiv:
+              - "2301.00123"
+            handle:
+              - 11449/123456
+        pmid:
+          type: string
+          nullable: true
+          description: PubMed ID (from publications)
+        pmcid:
+          type: string
+          nullable: true
+          description: PubMed Central ID (from publications)
+        arxiv:
+          type: string
+          nullable: true
+          description: arXiv identifier (from publications)
+        wos_id:
+          type: string
+          nullable: true
+          description: Web of Science ID (from publications)
+        handle:
+          type: string
+          nullable: true
+          description: Handle identifier (from publications)
+        wikidata_id:
+          type: string
+          nullable: true
+          description: Wikidata entity ID (from publications)
+        openalex_id:
+          type: string
+          nullable: true
+          description: OpenAlex ID (from publications)
+        mag_id:
+          type: string
+          nullable: true
+          description: Microsoft Academic Graph ID (from publications)
+        funding:
+          type: array
+          description: Funding information including funder organization, grant number,
+            and amounts
+          items:
+            type: object
+            properties:
+              funder_id:
+                type: integer
+                example: 4567
+              funder_name:
+                type: string
+                example: National Science Foundation
+              grant_number:
+                type: string
+                nullable: true
+                example: NSF-123456
+              program_name:
+                type: string
+                nullable: true
+                example: Computer and Information Science and Engineering
+              amount:
+                type: number
+                nullable: true
+                example: 150000
+              currency:
+                type: string
+                nullable: true
+                example: USD
+        created_at:
+          type: string
+          format: date-time
+          example: 2023-01-15T10:30:00Z
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          example: 2023-06-20T14:22:00Z
+          description: Last update timestamp
+    Person:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5952
+          description: Unique identifier for the person
+        preferred_name:
+          type: string
+          example: Dr. Maria Silva Santos
+          description: Preferred display name of the person
+        given_names:
+          type: string
+          example: Maria Silva
+          description: Given names
+        family_name:
+          type: string
+          example: Santos
+          description: Family name or surname
+        orcid:
+          type: string
+          example: 0000-0002-1825-0097
+          description: ORCID identifier
+        lattes_id:
+          type: string
+          example: "1234567890123456"
+          description: Lattes CV platform ID (Brazil)
+        scopus_id:
+          type: string
+          example: "57194582100"
+          description: Scopus Author ID
+        wos_id:
+          type: string
+          example: A-1234-2023
+          description: Web of Science ResearcherID
+        primary_affiliation:
+          $ref: "#/components/schemas/Organization"
+          description: Primary institutional affiliation
+        works_count:
+          type: integer
+          example: 45
+          description: Total number of works authored
+        h_index:
+          type: integer
+          example: 12
+          description: H-index bibliometric indicator
+        citation_count:
+          type: integer
+          example: 678
+          description: Total citations received
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Organization:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 12345
+          description: Unique identifier for the organization
+        name:
+          type: string
+          example: Universidade de São Paulo
+          description: Full name of the organization
+        short_name:
+          type: string
+          example: USP
+          description: Short name or acronym
+        type:
+          type: string
+          enum:
+            - UNIVERSITY
+            - RESEARCH_INSTITUTE
+            - COMPANY
+            - GOVERNMENT
+            - NGO
+            - HOSPITAL
+          example: UNIVERSITY
+          description: Type of organization
+        country:
+          type: string
+          example: Brazil
+          description: Country where organization is located
+        region:
+          type: string
+          example: South America
+          description: Geographic region
+        city:
+          type: string
+          example: São Paulo
+          description: City location
+        website:
+          type: string
+          format: uri
+          example: https://www.usp.br
+          description: Official website URL
+        ror_id:
+          type: string
+          example: https://ror.org/036rp1748
+          description: Research Organization Registry ID
+        works_count:
+          type: integer
+          example: 125420
+          description: Total number of works from this organization
+        members_count:
+          type: integer
+          example: 8250
+          description: Number of affiliated researchers
+        h_index:
+          type: integer
+          example: 245
+          description: Institutional H-index
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Author:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5952
+        preferred_name:
+          type: string
+          example: Dr. Maria Silva Santos
+        author_position:
+          type: integer
+          example: 1
+          description: Position in the author list (1-based)
+        is_corresponding:
+          type: boolean
+          example: true
+          description: Whether this is the corresponding author
+        affiliation:
+          $ref: "#/components/schemas/Organization"
+          description: Author affiliation at time of publication
+    Venue:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: American Anthropologist
+          description: Official name of the venue
+        type:
+          type: string
+          enum:
+            - JOURNAL
+            - CONFERENCE
+            - REPOSITORY
+            - BOOK_SERIES
+          example: JOURNAL
+        impact_factor:
+          type: number
+          format: float
+          nullable: true
+          example: 3.214
+        citescore:
+          type: number
+          format: float
+          nullable: true
+          example: 5.6
+        sjr:
+          type: number
+          format: float
+          nullable: true
+          example: 1.12
+        snip:
+          type: number
+          format: float
+          nullable: true
+          example: 0.98
+        open_access:
+          type: boolean
+          nullable: true
+          description: Indicates whether the venue is fully open access
+          example: false
+        aggregation_type:
+          type: string
+          nullable: true
+          example: journal
+        coverage_start_year:
+          type: integer
+          nullable: true
+          example: 1984
+        coverage_end_year:
+          type: integer
+          nullable: true
+          example: 2025
+        works_count:
+          type: integer
+          example: 1487
+        homepage_url:
+          type: string
+          nullable: true
+          example: http://www.jps.auckland.ac.nz
+        country_code:
+          type: string
+          nullable: true
+          example: NZ
+        is_in_doaj:
+          type: boolean
+          nullable: true
+          example: false
+        publications_count:
+          type: integer
+          example: 1523
+        last_validated_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: 2025-03-12T10:15:00Z
+        validation_status:
+          type: string
+          enum:
+            - PENDING
+            - VALIDATED
+            - NOT_FOUND
+            - FAILED
+          example: VALIDATED
+        created_at:
+          type: string
+          format: date-time
+          example: 1998-01-15T00:00:00Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2025-02-01T08:22:00Z
+        identifiers:
+          type: object
+          properties:
+            issn:
+              type: string
+              nullable: true
+              example: 0002-7294
+            eissn:
+              type: string
+              nullable: true
+              example: 1548-1433
+            scopus_source_id:
+              type: string
+              nullable: true
+              example: "12345"
+            external:
+              type: object
+              additionalProperties:
+                type: string
+              example:
+                WIKIDATA: https://www.wikidata.org/entity/Q15760156
+                OPENALEX: https://openalex.org/S189780351
+        publisher:
+          type: object
+          properties:
+            id:
+              type: integer
+              nullable: true
+              example: 42
+            name:
+              type: string
+              nullable: true
+              example: Wiley-Blackwell
+            type:
+              type: string
+              nullable: true
+              example: PUBLISHER
+            country_code:
+              type: string
+              nullable: true
+              example: US
+        metrics:
+          $ref: "#/components/schemas/VenueMetrics"
+    Citation:
+      type: object
+      properties:
+        citing_work_id:
+          type: integer
+          example: 123456
+          description: ID of the work that makes the citation
+        title:
+          type: string
+          example: Advances in Machine Learning
+          description: Title of the citing work
+        type:
+          type: string
+          example: ARTICLE
+          description: Type of the citing work
+        year:
+          type: integer
+          nullable: true
+          example: 2023
+          description: Publication year of the citing work
+        doi:
+          type: string
+          nullable: true
+          example: 10.1000/journal.2023.001
+          description: DOI of the citing work
+        authors_count:
+          type: integer
+          example: 3
+          description: Number of authors
+        citation:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - POSITIVE
+                - NEUTRAL
+                - NEGATIVE
+                - SELF
+              example: NEUTRAL
+              description: Type of citation context
+            context:
+              type: string
+              nullable: true
+              example: This methodology builds upon the seminal work by Santos et al.
+                (2023)...
+              description: Citation context from the text (truncated to 200 chars)
+    CitationMetrics:
+      type: object
+      properties:
+        work_id:
+          type: integer
+          example: 123456
+          description: Work ID
+        title:
+          type: string
+          example: Advances in Machine Learning
+          description: Work title
+        type:
+          type: string
+          example: ARTICLE
+          description: Work type
+        publication_year:
+          type: integer
+          nullable: true
+          example: 2020
+          description: Publication year
+        citation_metrics:
+          type: object
+          properties:
+            total_citations_received:
+              type: integer
+              example: 145
+              description: Total citations received
+            total_references_made:
+              type: integer
+              example: 67
+              description: Total references made by this work
+            unique_citing_works:
+              type: integer
+              example: 134
+              description: Number of unique works citing this
+            citations_per_year:
+              type: number
+              format: float
+              example: 36.25
+              description: Average citations per year since publication
+            citation_types:
+              type: object
+              properties:
+                positive:
+                  type: integer
+                  example: 120
+                  description: Positive citations
+                neutral:
+                  type: integer
+                  example: 20
+                  description: Neutral citations
+                negative:
+                  type: integer
+                  example: 3
+                  description: Negative citations
+                self:
+                  type: integer
+                  example: 2
+                  description: Self citations
+        temporal_metrics:
+          type: object
+          properties:
+            first_citation_year:
+              type: integer
+              nullable: true
+              example: 2020
+              description: Year of first citation received
+            latest_citation_year:
+              type: integer
+              nullable: true
+              example: 2024
+              description: Year of most recent citation
+            citation_span_years:
+              type: integer
+              nullable: true
+              example: 5
+              description: Years between first and latest citation
+        impact_indicators:
+          type: object
+          properties:
+            highly_cited:
+              type: boolean
+              example: true
+              description: Whether work is highly cited (>100 citations)
+            citation_velocity:
+              type: string
+              enum:
+                - current
+                - recent
+                - historical
+              example: current
+              description: Citation velocity category
+    CitationNetwork:
+      type: object
+      properties:
+        central_work_id:
+          type: integer
+          example: 123456
+          description: ID of the central work
+        network_depth:
+          type: integer
+          example: 2
+          description: Depth of network analysis
+        nodes:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 123456
+              title:
+                type: string
+                example: Machine Learning Fundamentals
+              year:
+                type: integer
+                nullable: true
+                example: 2020
+              is_central:
+                type: boolean
+                example: true
+                description: Whether this is the central work
+          description: Network nodes (works) indexed by work ID
+        edges:
+          type: array
+          items:
+            type: object
+            properties:
+              source:
+                type: integer
+                example: 123456
+                description: Source work ID (citing work)
+              target:
+                type: integer
+                example: 789012
+                description: Target work ID (cited work)
+              depth:
+                type: integer
+                example: 1
+                description: Depth level in network
+              citation_type:
+                type: string
+                enum:
+                  - POSITIVE
+                  - NEUTRAL
+                  - NEGATIVE
+                  - SELF
+                example: NEUTRAL
+                description: Type of citation
+              source_year:
+                type: integer
+                nullable: true
+                example: 2021
+                description: Publication year of source work
+              target_year:
+                type: integer
+                nullable: true
+                example: 2020
+                description: Publication year of target work
+          description: Citation relationships between works
+        network_stats:
+          type: object
+          properties:
+            total_nodes:
+              type: integer
+              example: 25
+              description: Total number of nodes in network
+            total_edges:
+              type: integer
+              example: 42
+              description: Total number of citation edges
+            max_depth:
+              type: integer
+              example: 2
+              description: Maximum depth reached in network
+    File:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 789
+          description: Unique file identifier
+        md5:
+          type: string
+          example: a1b2c3d4e5f67890123456789abcdef
+          description: MD5 hash of the file (primary identifier)
+        sha1:
+          type: string
+          nullable: true
+          example: b1c2d3e4f5a67890123456789abcdef01234567
+          description: SHA1 hash of the file
+        sha256:
+          type: string
+          nullable: true
+          example: c1d2e3f4a5b67890123456789abcdef0123456789abcdef0123456789abcdef0
+          description: SHA256 hash of the file
+        size_bytes:
+          type: integer
+          example: 2048576
+          description: File size in bytes
+        format:
+          type: string
+          enum:
+            - PDF
+            - EPUB
+            - MOBI
+            - HTML
+            - XML
+            - DOCX
+            - TXT
+            - OTHER
+          example: PDF
+          description: File format
+        version:
+          type: string
+          nullable: true
+          example: "1.0"
+          description: File version
+        pages:
+          type: integer
+          nullable: true
+          example: 15
+          description: Number of pages (for paginated formats)
+        language:
+          type: string
+          nullable: true
+          example: en
+          description: Language of the file content (ISO 639 code)
+        upload_date:
+          type: string
+          format: date-time
+          nullable: true
+          example: 2023-01-15T10:30:00Z
+          description: File upload timestamp
+        download_count:
+          type: integer
+          example: 25
+          description: Number of times file has been downloaded
+        libgen_id:
+          type: integer
+          nullable: true
+          example: 123456
+          description: LibGen database identifier
+        scimag_id:
+          type: integer
+          nullable: true
+          example: 789012
+          description: SciMag database identifier
+    Collaboration:
+      type: object
+      properties:
+        collaborator_id:
+          type: integer
+          example: 9876
+        collaborator_name:
+          type: string
+          example: Dr. João Carlos Oliveira
+        collaboration_metrics:
+          type: object
+          properties:
+            total_collaborations:
+              type: integer
+              example: 8
+              description: Total number of collaborative works
+            collaboration_span_years:
+              type: integer
+              example: 5
+              description: Years of active collaboration
+            avg_citations_together:
+              type: number
+              format: float
+              example: 24.5
+              description: Average citations for collaborative works
+            first_collaboration_year:
+              type: integer
+              example: 2018
+            latest_collaboration_year:
+              type: integer
+              example: 2023
+        collaboration_strength:
+          type: string
+          enum:
+            - very_strong
+            - strong
+            - moderate
+            - weak
+          example: strong
+          description: Calculated collaboration strength category
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 6894
+          description: Total number of results
+        page:
+          type: integer
+          example: 1
+          description: Current page number
+        limit:
+          type: integer
+          example: 20
+          description: Number of results per page
+        totalPages:
+          type: integer
+          example: 345
+          description: Total number of pages
+        hasNext:
+          type: boolean
+          example: true
+          description: Whether there is a next page
+        hasPrev:
+          type: boolean
+          example: false
+          description: Whether there is a previous page
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+            - error
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: number
+          example: 86400.5
+          description: Uptime in seconds
+        responseTime:
+          type: string
+          example: 15ms
+        version:
+          type: string
+          example: 2.0.0
+        environment:
+          type: string
+          example: production
+        services:
+          type: object
+          properties:
+            database:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - connected
+                    - disconnected
+                type:
+                  type: string
+                  example: MariaDB
+            cache:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - connected
+                    - disconnected
+                type:
+                  type: string
+                  example: Redis
+        monitoring:
+          type: object
+          properties:
+            requests:
+              type: object
+              properties:
+                total:
+                  type: integer
+                  example: 15420
+                performance:
+                  type: object
+                  properties:
+                    p95_response_time_ms:
+                      type: number
+                      example: 85.5
+            errors:
+              type: object
+              properties:
+                error_rate:
+                  type: string
+                  example: 0.5%
+    DashboardStats:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        totals:
+          type: object
+          properties:
+            total_works:
+              type: integer
+              example: 650645
+            total_persons:
+              type: integer
+              example: 385670
+            total_organizations:
+              type: integer
+              example: 235833
+            total_authorships:
+              type: integer
+              example: 1070000
+            total_citations:
+              type: integer
+              example: 2500000
+        recent_trends:
+          type: array
+          items:
+            type: object
+            properties:
+              year:
+                type: integer
+                example: 2023
+              total_publications:
+                type: integer
+                example: 45620
+              unique_authors:
+                type: integer
+                example: 28950
+        meta:
+          type: object
+          properties:
+            query_time_ms:
+              type: integer
+              example: 180
+    VenueMetrics:
+      type: object
+      properties:
+        publications_count:
+          type: integer
+          example: 1523
+        works_count:
+          type: integer
+          example: 1487
+        unique_authors:
+          type: integer
+          example: 512
+        cited_by_count:
+          type: integer
+          example: 4375
+        h_index:
+          type: integer
+          example: 32
+        i10_index:
+          type: integer
+          example: 144
+        open_access_publications:
+          type: integer
+          example: 420
+        open_access_percentage:
+          type: number
+          format: float
+          nullable: true
+          example: 27.53
+        total_citations:
+          type: integer
+          example: 18345
+        avg_citations:
+          type: number
+          format: float
+          nullable: true
+          example: 12.04
+        total_downloads:
+          type: integer
+          example: 92341
+        first_publication_year:
+          type: integer
+          nullable: true
+          example: 1984
+        latest_publication_year:
+          type: integer
+          nullable: true
+          example: 2025
+    VenueStatistics:
+      type: object
+      properties:
+        total_venues:
+          type: integer
+          example: 1179
+        journals:
+          type: integer
+          example: 1179
+        conferences:
+          type: integer
+          example: 0
+        repositories:
+          type: integer
+          example: 0
+        book_series:
+          type: integer
+          example: 0
+        with_impact_factor:
+          type: integer
+          example: 42
+        avg_impact_factor:
+          type: number
+          format: float
+          example: 1.7492857
+        max_impact_factor:
+          type: number
+          format: float
+          example: 6.77
+        min_impact_factor:
+          type: number
+          format: float
+          example: 0
+    AutocompleteResponse:
+      type: object
+      properties:
+        query:
+          type: string
+          example: machine
+        suggestions:
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+                example: Machine Learning Applications
+              type:
+                type: string
+                enum:
+                  - title
+                  - venue
+                  - author
+                example: title
+              relevance:
+                type: number
+                example: 1
+              preview:
+                type: string
+                example: Machine Learning Applications in...
+              work_count:
+                type: integer
+                example: 5
+        type:
+          type: string
+          example: all
+        count:
+          type: integer
+          example: 8
+        generated_at:
+          type: string
+          format: date-time
+    Course:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 25
+          description: Unique identifier for the course
+        program_id:
+          type: integer
+          example: 2
+          description: Program identifier
+        code:
+          type: string
+          example: MNA201
+          description: Course code
+        name:
+          type: string
+          example: AS-201 Instituições Comparadas
+          description: Course name
+        credits:
+          type: integer
+          nullable: true
+          example: 4
+          description: Course credit hours
+        semester:
+          type: string
+          enum:
+            - "1"
+            - "2"
+            - SUMMER
+            - WINTER
+            - YEAR_LONG
+          example: "2"
+          description: Course semester
+        year:
+          type: integer
+          example: 1968
+          description: Academic year
+        instructor_count:
+          type: integer
+          example: 2
+          description: Number of instructors
+        bibliography_count:
+          type: integer
+          example: 25
+          description: Number of bibliography items
+        instructors:
+          type: string
+          example: Bruce Corrie; Roque de Barros Laraia
+          description: Instructor names
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        source_file:
+          type: string
+          example: 1968.2_-_mna201_-_bruce_corrie___roque_laraia.json
+          description: Source file name
+    CourseDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 25
+          description: Unique identifier for the course
+        program_id:
+          type: integer
+          example: 2
+          description: Program identifier
+        code:
+          type: string
+          example: MNA201
+          description: Course code
+        name:
+          type: string
+          example: AS-201 Instituições Comparadas
+          description: Course name
+        credits:
+          type: integer
+          nullable: true
+          example: 4
+          description: Course credit hours
+        semester:
+          type: string
+          enum:
+            - "1"
+            - "2"
+            - SUMMER
+            - WINTER
+            - YEAR_LONG
+          example: "2"
+          description: Course semester
+        year:
+          type: integer
+          example: 1968
+          description: Academic year
+        instructor_count:
+          type: integer
+          example: 2
+          description: Number of instructors
+        bibliography_count:
+          type: integer
+          example: 25
+          description: Number of bibliography items
+        subject_count:
+          type: integer
+          example: 15
+          description: Number of associated subjects
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        source_file:
+          type: string
+          example: 1968.2_-_mna201_-_bruce_corrie___roque_laraia.json
+          description: Source file name
+    CourseInstructor:
+      type: object
+      properties:
+        course_id:
+          type: integer
+          example: 25
+          description: Course identifier
+        person_id:
+          type: integer
+          example: 31
+          description: Original person identifier
+        canonical_person_id:
+          type: integer
+          example: 31
+          description: Canonical person identifier
+        role:
+          type: string
+          enum:
+            - PROFESSOR
+            - ASSISTANT
+            - TA
+            - GUEST
+          example: PROFESSOR
+          description: Instructor role
+        preferred_name:
+          type: string
+          example: Bruce Corrie
+          description: Preferred name
+        given_names:
+          type: string
+          example: Bruce
+          description: Given names
+        family_name:
+          type: string
+          example: Corrie
+          description: Family name
+        orcid:
+          type: string
+          nullable: true
+          example: 0000-0002-1825-0097
+          description: ORCID identifier
+        is_verified:
+          type: boolean
+          example: true
+          description: Verification status
+    Instructor:
+      type: object
+      properties:
+        person_id:
+          type: integer
+          example: 31
+          description: Person identifier
+        preferred_name:
+          type: string
+          example: Bruce Corrie
+          description: Preferred name
+        given_names:
+          type: string
+          example: Bruce
+          description: Given names
+        family_name:
+          type: string
+          example: Corrie
+          description: Family name
+        orcid:
+          type: string
+          nullable: true
+          example: 0000-0002-1825-0097
+          description: ORCID identifier
+        lattes_id:
+          type: string
+          nullable: true
+          example: "1234567890123456"
+          description: Lattes CV platform ID
+        is_verified:
+          type: boolean
+          example: true
+          description: Verification status
+        courses_taught:
+          type: integer
+          example: 15
+          description: Number of courses taught
+        programs_count:
+          type: integer
+          example: 3
+          description: Number of programs involved
+        earliest_year:
+          type: integer
+          example: 1968
+          description: First year teaching
+        latest_year:
+          type: integer
+          example: 2024
+          description: Latest year teaching
+        roles:
+          type: array
+          items:
+            type: string
+          example:
+            - PROFESSOR
+            - ASSISTANT
+          description: Teaching roles
+        program_ids:
+          type: array
+          items:
+            type: integer
+          example:
+            - 2
+            - 3
+          description: Program identifiers
+    InstructorDetails:
+      type: object
+      properties:
+        person_id:
+          type: integer
+          example: 31
+          description: Person identifier
+        preferred_name:
+          type: string
+          example: Bruce Corrie
+          description: Preferred name
+        given_names:
+          type: string
+          example: Bruce
+          description: Given names
+        family_name:
+          type: string
+          example: Corrie
+          description: Family name
+        orcid:
+          type: string
+          nullable: true
+          example: 0000-0002-1825-0097
+          description: ORCID identifier
+        lattes_id:
+          type: string
+          nullable: true
+          example: "1234567890123456"
+          description: Lattes CV platform ID
+        scopus_id:
+          type: string
+          nullable: true
+          example: "57194582100"
+          description: Scopus Author ID
+        is_verified:
+          type: boolean
+          example: true
+          description: Verification status
+        courses_taught:
+          type: integer
+          example: 15
+          description: Number of courses taught
+        programs_count:
+          type: integer
+          example: 3
+          description: Number of programs involved
+        bibliography_contributed:
+          type: integer
+          example: 250
+          description: Bibliography items contributed
+        earliest_year:
+          type: integer
+          example: 1968
+          description: First year teaching
+        latest_year:
+          type: integer
+          example: 2024
+          description: Latest year teaching
+        roles:
+          type: array
+          items:
+            type: string
+          example:
+            - PROFESSOR
+          description: Teaching roles
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+    Subject:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+          description: Unique identifier for the subject
+        term:
+          type: string
+          example: Machine Learning
+          description: Subject term
+        vocabulary:
+          type: string
+          enum:
+            - KEYWORD
+            - MESH
+            - LCSH
+            - DDC
+            - UDC
+            - CUSTOM
+          example: KEYWORD
+          description: Vocabulary type
+        parent_id:
+          type: integer
+          nullable: true
+          example: null
+          description: Parent subject ID for hierarchy
+        works_count:
+          type: integer
+          example: 1250
+          description: Number of associated works
+        courses_count:
+          type: integer
+          example: 25
+          description: Number of associated courses
+        children_count:
+          type: integer
+          example: 5
+          description: Number of child subjects
+        parent_term:
+          type: string
+          nullable: true
+          example: Artificial Intelligence
+          description: Parent subject term
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+    SubjectDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+          description: Unique identifier for the subject
+        term:
+          type: string
+          example: Machine Learning
+          description: Subject term
+        vocabulary:
+          type: string
+          enum:
+            - KEYWORD
+            - MESH
+            - LCSH
+            - DDC
+            - UDC
+            - CUSTOM
+          example: KEYWORD
+          description: Vocabulary type
+        parent_id:
+          type: integer
+          nullable: true
+          example: null
+          description: Parent subject ID
+        works_count:
+          type: integer
+          example: 1250
+          description: Number of associated works
+        courses_count:
+          type: integer
+          example: 25
+          description: Number of associated courses
+        children_count:
+          type: integer
+          example: 5
+          description: Number of child subjects
+        parent_term:
+          type: string
+          nullable: true
+          example: Artificial Intelligence
+          description: Parent subject term
+        parent_vocabulary:
+          type: string
+          nullable: true
+          example: KEYWORD
+          description: Parent vocabulary type
+        avg_relevance_score:
+          type: number
+          format: float
+          example: 0.85
+          description: Average relevance score
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+    BibliographyEntry:
+      type: object
+      properties:
+        course_id:
+          type: integer
+          example: 25
+          description: Course identifier
+        work_id:
+          type: integer
+          example: 2690411
+          description: Work identifier
+        reading_type:
+          type: string
+          enum:
+            - REQUIRED
+            - RECOMMENDED
+            - SUPPLEMENTARY
+          example: RECOMMENDED
+          description: Type of reading assignment
+        week_number:
+          type: integer
+          nullable: true
+          example: 5
+          description: Week number in course
+        notes:
+          type: string
+          nullable: true
+          example: Essential reading for understanding theoretical foundations
+          description: Additional notes
+        course_code:
+          type: string
+          example: MNA201
+          description: Course code
+        course_name:
+          type: string
+          example: AS-201 Instituições Comparadas
+          description: Course name
+        course_year:
+          type: integer
+          example: 1968
+          description: Course year
+        semester:
+          type: string
+          example: "2"
+          description: Course semester
+        program_id:
+          type: integer
+          example: 2
+          description: Program identifier
+        title:
+          type: string
+          example: Comparative Political Institutions
+          description: Work title
+        publication_year:
+          type: integer
+          example: 1965
+          description: Publication year
+        language:
+          type: string
+          example: en
+          description: Work language
+        document_type:
+          type: string
+          example: BOOK
+          description: Document type
+        author_count:
+          type: integer
+          example: 2
+          description: Number of authors
+        authors:
+          type: array
+          items:
+            type: string
+          example:
+            - John Smith
+            - Jane Doe
+          description: Author names
+        instructors:
+          type: string
+          example: Bruce Corrie; Roque de Barros Laraia
+          description: Course instructors
+    CoursesStatistics:
+      type: object
+      properties:
+        total_courses:
+          type: integer
+          example: 433
+          description: Total number of courses
+        programs_count:
+          type: integer
+          example: 15
+          description: Number of programs
+        earliest_year:
+          type: integer
+          example: 1968
+          description: Earliest academic year
+        latest_year:
+          type: integer
+          example: 2024
+          description: Latest academic year
+        semesters_count:
+          type: integer
+          example: 3
+          description: Number of distinct semesters
+        avg_credits:
+          type: number
+          format: float
+          example: 3.5
+          description: Average credits per course
+        courses_with_credits:
+          type: integer
+          example: 285
+          description: Courses with credit information
+        year_distribution:
+          type: array
+          items:
+            type: object
+            properties:
+              year:
+                type: integer
+                example: 2024
+              course_count:
+                type: integer
+                example: 45
+              program_count:
+                type: integer
+                example: 8
+          description: Course distribution by year
+        semester_distribution:
+          type: array
+          items:
+            type: object
+            properties:
+              semester:
+                type: string
+                example: "2"
+              course_count:
+                type: integer
+                example: 200
+          description: Course distribution by semester
+    InstructorsStatistics:
+      type: object
+      properties:
+        total_instructors:
+          type: integer
+          example: 285
+          description: Total number of instructors
+        total_courses_taught:
+          type: integer
+          example: 433
+          description: Total courses taught
+        programs_with_instructors:
+          type: integer
+          example: 15
+          description: Programs with instructors
+        avg_courses_per_instructor:
+          type: number
+          format: float
+          example: 2.8
+          description: Average courses per instructor
+        role_distribution:
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                example: PROFESSOR
+              instructor_count:
+                type: integer
+                example: 250
+              assignment_count:
+                type: integer
+                example: 400
+          description: Distribution by role
+        top_instructors:
+          type: array
+          items:
+            type: object
+            properties:
+              preferred_name:
+                type: string
+                example: John Smith
+              courses_taught:
+                type: integer
+                example: 25
+              programs_count:
+                type: integer
+                example: 3
+              earliest_year:
+                type: integer
+                example: 1970
+              latest_year:
+                type: integer
+                example: 2024
+          description: Top instructors by course count
+    SubjectsStatistics:
+      type: object
+      properties:
+        total_subjects:
+          type: integer
+          example: 42822
+          description: Total number of subjects
+        root_subjects:
+          type: integer
+          example: 35000
+          description: Root subjects (no parent)
+        child_subjects:
+          type: integer
+          example: 7822
+          description: Child subjects (have parent)
+        vocabularies_count:
+          type: integer
+          example: 6
+          description: Number of vocabularies
+        subjects_with_works:
+          type: integer
+          example: 38500
+          description: Subjects associated with works
+        total_work_subject_relations:
+          type: integer
+          example: 74338
+          description: Total work-subject relationships
+        vocabulary_distribution:
+          type: array
+          items:
+            type: object
+            properties:
+              vocabulary:
+                type: string
+                example: KEYWORD
+              subject_count:
+                type: integer
+                example: 40000
+              root_count:
+                type: integer
+                example: 32000
+              works_count:
+                type: integer
+                example: 65000
+          description: Distribution by vocabulary
+        top_subjects:
+          type: array
+          items:
+            type: object
+            properties:
+              term:
+                type: string
+                example: Anthropology
+              vocabulary:
+                type: string
+                example: KEYWORD
+              works_count:
+                type: integer
+                example: 1500
+              courses_count:
+                type: integer
+                example: 25
+              avg_relevance:
+                type: number
+                format: float
+                example: 0.85
+          description: Top subjects by work count
+    BibliographyStatistics:
+      type: object
+      properties:
+        total_bibliography_entries:
+          type: integer
+          example: 17003
+          description: Total bibliography entries
+        unique_works:
+          type: integer
+          example: 12500
+          description: Unique works in bibliographies
+        courses_with_bibliography:
+          type: integer
+          example: 380
+          description: Courses with bibliography
+        programs_with_bibliography:
+          type: integer
+          example: 15
+          description: Programs with bibliography
+        avg_works_per_course:
+          type: number
+          format: float
+          example: 45.8
+          description: Average works per course
+        max_works_per_course:
+          type: integer
+          example: 250
+          description: Maximum works in a course
+        reading_type_distribution:
+          type: array
+          items:
+            type: object
+            properties:
+              reading_type:
+                type: string
+                example: RECOMMENDED
+              count:
+                type: integer
+                example: 15000
+              percentage:
+                type: number
+                format: float
+                example: 88.2
+          description: Distribution by reading type
+        year_range:
+          type: object
+          properties:
+            earliest_course_year:
+              type: integer
+              example: 1968
+            latest_course_year:
+              type: integer
+              example: 2024
+            earliest_publication_year:
+              type: integer
+              example: 1850
+            latest_publication_year:
+              type: integer
+              example: 2024
+            avg_publication_year:
+              type: number
+              format: float
+              example: 1985.5
+          description: Year range information
+    BibliographyAnalysis:
+      type: object
+      properties:
+        most_used_works:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 2690411
+              title:
+                type: string
+                example: Comparative Political Institutions
+              publication_year:
+                type: integer
+                example: 1965
+              document_type:
+                type: string
+                example: BOOK
+              author_count:
+                type: integer
+                example: 2
+              authors:
+                type: array
+                items:
+                  type: string
+                example:
+                  - John Smith
+                  - Jane Doe
+              used_in_courses:
+                type: integer
+                example: 15
+              used_in_programs:
+                type: integer
+                example: 5
+              reading_types:
+                type: array
+                items:
+                  type: string
+                example:
+                  - REQUIRED
+                  - RECOMMENDED
+          description: Most frequently used works
+        trends_by_year:
+          type: array
+          items:
+            type: object
+            properties:
+              year:
+                type: integer
+                example: 2023
+              works_count:
+                type: integer
+                example: 850
+              courses_count:
+                type: integer
+                example: 35
+              programs_count:
+                type: integer
+                example: 8
+              avg_publication_year:
+                type: number
+                format: float
+                example: 1995.5
+          description: Bibliography trends by year
+        reading_type_distribution:
+          type: array
+          items:
+            type: object
+            properties:
+              reading_type:
+                type: string
+                example: RECOMMENDED
+              count:
+                type: integer
+                example: 15000
+              unique_works:
+                type: integer
+                example: 8500
+              courses:
+                type: integer
+                example: 350
+          description: Distribution by reading type
+        document_type_distribution:
+          type: array
+          items:
+            type: object
+            properties:
+              document_type:
+                type: string
+                example: BOOK
+              usage_count:
+                type: integer
+                example: 8500
+              unique_works:
+                type: integer
+                example: 3200
+              courses_count:
+                type: integer
+                example: 280
+          description: Distribution by document type
+    InstructorBibliography:
+      type: object
+      properties:
+        work_id:
+          type: integer
+          example: 2684644
+          description: Work identifier
+        title:
+          type: string
+          example: "The Gift: Forms and Functions of Exchange in Archaic Societies"
+          description: Work title
+        publication_year:
+          type: integer
+          example: 1950
+          description: Year of publication
+        language:
+          type: string
+          example: en
+          description: Publication language
+        document_type:
+          type: string
+          enum:
+            - ARTICLE
+            - BOOK
+            - CHAPTER
+            - THESIS
+            - REPORT
+          example: BOOK
+          description: Type of document
+        reading_type:
+          type: string
+          enum:
+            - REQUIRED
+            - RECOMMENDED
+            - SUPPLEMENTARY
+            - OPTIONAL
+          example: RECOMMENDED
+          description: Reading assignment type
+        author_count:
+          type: integer
+          example: 1
+          description: Number of authors
+        first_author_name:
+          type: string
+          example: Marcel Mauss
+          description: First author name
+        authors:
+          type: array
+          items:
+            type: string
+          example:
+            - Marcel Mauss
+          description: List of authors
+        used_in_courses:
+          type: integer
+          example: 3
+          description: Number of courses using this work
+      description: Bibliography entry used by instructor
+    WorkBibliography:
+      type: object
+      properties:
+        course_id:
+          type: integer
+          example: 465
+          description: Course identifier
+        course_name:
+          type: string
+          example: Antropologia do Parentesco
+          description: Course name
+        course_year:
+          type: integer
+          example: 2025
+          description: Academic year
+        program_id:
+          type: integer
+          example: 2
+          description: Academic program identifier
+        reading_type:
+          type: string
+          enum:
+            - REQUIRED
+            - RECOMMENDED
+            - SUPPLEMENTARY
+            - OPTIONAL
+          example: RECOMMENDED
+          description: Reading assignment type
+        instructor_count:
+          type: integer
+          example: 2
+          description: Number of instructors
+        instructors:
+          type: string
+          example: João Silva; Maria Santos
+          description: Instructor names (semicolon separated)
+      description: Course usage information for a work
+    ComprehensiveInstructorProfile:
+      type: object
+      properties:
+        person:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            preferred_name:
+              type: string
+              example: Luiz Fernando Dias Duarte
+            given_names:
+              type: string
+              example: Luiz Fernando Dias
+            family_name:
+              type: string
+              example: Duarte
+            orcid:
+              type: string
+              example: 0000-0001-7610-1527
+            lattes_id:
+              type: string
+              nullable: true
+              example: null
+            scopus_id:
+              type: string
+              nullable: true
+              example: null
+            is_verified:
+              type: integer
+              example: 1
+            created_at:
+              type: string
+              format: date-time
+              example: 2025-08-13T22:29:24.000Z
+          description: Complete person information
+        teaching_profile:
+          type: object
+          properties:
+            courses_taught:
+              type: integer
+              example: 29
+            programs_count:
+              type: integer
+              example: 1
+            bibliography_items_used:
+              type: integer
+              example: 1018
+            unique_collaborators:
+              type: integer
+              example: 1
+            teaching_start_year:
+              type: integer
+              example: 1981
+            teaching_end_year:
+              type: integer
+              example: 2022
+            teaching_roles:
+              type: array
+              items:
+                type: string
+                enum:
+                  - PROFESSOR
+                  - ASSISTANT
+                  - TA
+                  - GUEST
+              example:
+                - PROFESSOR
+            teaching_span_years:
+              type: integer
+              example: 42
+          description: Teaching career statistics and timeline
+        authorship_profile:
+          type: object
+          properties:
+            works_authored:
+              type: integer
+              example: 25
+            unique_signatures:
+              type: integer
+              example: 1
+            confirmed_authorships:
+              type: integer
+              example: 38
+            first_publication_year:
+              type: integer
+              nullable: true
+              example: 1971
+            latest_publication_year:
+              type: integer
+              nullable: true
+              example: 2022
+          description: Research output and authorship statistics
+        signatures:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 92152
+              signature:
+                type: string
+                example: DUARTE L F D
+              works_with_signature:
+                type: integer
+                example: 25
+          description: Author signatures and their usage in works
+        recent_authored_works:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 2683933
+              title:
+                type: string
+                example: Un nouveau centenaire pour le Brésil et pour son Musée National
+              year:
+                type: integer
+                example: 2022
+              work_type:
+                type: string
+                example: ARTICLE
+              language:
+                type: string
+                nullable: true
+                example: null
+              signature_text:
+                type: string
+                example: DUARTE L F D
+          description: 10 most recent authored works by publication year
+        bibliography_usage_patterns:
+          type: array
+          items:
+            type: object
+            properties:
+              reading_type:
+                type: string
+                enum:
+                  - REQUIRED
+                  - RECOMMENDED
+                  - SUPPLEMENTARY
+                example: RECOMMENDED
+              works_count:
+                type: integer
+                example: 1018
+              courses_count:
+                type: integer
+                example: 29
+          description: Bibliography usage patterns in courses taught
+        most_used_authors_in_courses:
+          type: array
+          items:
+            type: object
+            properties:
+              author_string:
+                type: string
+                example: Marcel Mauss;Claude Lévi-Strauss
+              first_author_name:
+                type: string
+                example: Marcel Mauss
+              usage_count:
+                type: integer
+                example: 15
+              courses_count:
+                type: integer
+                example: 8
+              authors_array:
+                type: array
+                items:
+                  type: string
+                example:
+                  - Marcel Mauss
+                  - Claude Lévi-Strauss
+          description: 15 most frequently used authors in instructor courses
+        subject_expertise:
+          type: array
+          items:
+            type: object
+            properties:
+              vocabulary:
+                type: string
+                enum:
+                  - KEYWORD
+                  - MESH
+                  - LCSH
+                  - DDC
+                  - UDC
+                  - CUSTOM
+                example: KEYWORD
+              subjects_count:
+                type: integer
+                example: 45
+              works_count:
+                type: integer
+                example: 120
+              courses_count:
+                type: integer
+                example: 15
+          description: Subject expertise analysis by vocabulary type
+        teaching_collaborators:
+          type: array
+          items:
+            type: object
+            properties:
+              collaborator_id:
+                type: integer
+                example: 6
+              collaborator_name:
+                type: string
+                example: Adriana Vianna
+              shared_courses:
+                type: integer
+                example: 1
+          description: Top 10 teaching collaborators by shared courses
+        combined_statistics:
+          type: object
+          properties:
+            total_academic_span_years:
+              type: integer
+              example: 52
+              description: Maximum span between teaching and publication activities
+            academic_productivity_ratio:
+              type: string
+              example: "0.86"
+              description: Ratio of works authored to courses taught
+            bibliography_diversity_score:
+              type: integer
+              example: 1
+              description: Number of different reading types used
+            signature_consistency_score:
+              type: number
+              example: 25
+              description: Average works per signature (consistency measure)
+          description: Combined academic performance metrics
+      description: Comprehensive academic profile combining teaching, research,
+        authorship, and collaboration data
+    ComprehensiveCourseDetails:
+      type: object
+      properties:
+        course:
+          $ref: "#/components/schemas/CourseDetails"
+          description: Basic course information
+        bibliography:
+          type: array
+          items:
+            type: object
+            properties:
+              course_id:
+                type: integer
+                example: 25
+              work_id:
+                type: integer
+                example: 2715248
+              reading_type:
+                type: string
+                enum:
+                  - REQUIRED
+                  - RECOMMENDED
+                  - SUPPLEMENTARY
+                example: RECOMMENDED
+              week_number:
+                type: integer
+                nullable: true
+                example: 3
+              notes:
+                type: string
+                nullable: true
+                example: Essential reading for module introduction
+              title:
+                type: string
+                example: Changing Emphases in Social Structure
+              publication_year:
+                type: integer
+                nullable: true
+                example: 1965
+              language:
+                type: string
+                nullable: true
+                example: en
+              document_type:
+                type: string
+                example: ARTICLE
+              author_string:
+                type: string
+                example: George Peter Murdock
+              first_author_name:
+                type: string
+                example: George Peter Murdock
+              authors:
+                type: array
+                items:
+                  type: string
+                example:
+                  - George Peter Murdock
+              author_count:
+                type: integer
+                example: 1
+          description: Course bibliography with detailed work information
+        instructors:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseInstructor"
+          description: Course instructors with roles and verification
+        subjects:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 1
+              term:
+                type: string
+                example: Anthropology
+              vocabulary:
+                type: string
+                enum:
+                  - KEYWORD
+                  - MESH
+                  - LCSH
+                  - DDC
+                  - UDC
+                  - CUSTOM
+                example: KEYWORD
+              parent_id:
+                type: integer
+                nullable: true
+                example: null
+              work_count:
+                type: integer
+                example: 15
+                description: Number of works in this course using this subject
+          description: Subjects covered in course bibliography
+        statistics:
+          type: object
+          properties:
+            total_bibliography_items:
+              type: integer
+              example: 17
+              description: Total bibliography entries
+            total_instructors:
+              type: integer
+              example: 2
+              description: Total number of instructors
+            total_subjects:
+              type: integer
+              example: 0
+              description: Total number of subjects covered
+          description: Course statistical summary
+        bibliography_statistics:
+          type: object
+          properties:
+            by_type:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    example: 17
+                  first_week:
+                    type: integer
+                    nullable: true
+                    example: null
+                  last_week:
+                    type: integer
+                    nullable: true
+                    example: null
+              example:
+                RECOMMENDED:
+                  count: 17
+                  first_week: null
+                  last_week: null
+              description: Bibliography statistics by reading type
+            by_week:
+              type: array
+              items:
+                type: object
+                properties:
+                  week_number:
+                    type: integer
+                    example: 1
+                  count:
+                    type: integer
+                    example: 3
+                  reading_types:
+                    type: string
+                    example: REQUIRED,RECOMMENDED
+              description: Bibliography distribution by week
+          description: Detailed bibliography statistics
+        instructor_statistics:
+          type: object
+          properties:
+            by_role:
+              type: object
+              additionalProperties:
+                type: integer
+              example:
+                PROFESSOR: 2
+              description: Instructor count by role
+          description: Instructor distribution statistics
+        subject_statistics:
+          type: object
+          properties:
+            by_vocabulary:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  unique_subjects:
+                    type: integer
+                    example: 15
+                  works_covered:
+                    type: integer
+                    example: 12
+              example:
+                KEYWORD:
+                  unique_subjects: 15
+                  works_covered: 12
+              description: Subject statistics by vocabulary
+          description: Subject coverage statistics
+      description: Comprehensive course details with bibliography, instructors,
+        subjects, and statistics
+  parameters:
+    limitParam:
+      name: limit
+      in: query
+      description: Number of items to return per page (works with both page and offset
+        formats)
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    offsetParam:
+      name: offset
+      in: query
+      description: "Number of items to skip. Automatically converts to page format:
+        offset÷limit = page number"
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 20
+    pageParam:
+      name: page
+      in: query
+      description: Page number (1-based). Use with limit parameter for traditional
+        pagination
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 2
+    searchParam:
+      name: search
+      in: query
+      description: Search term for filtering results
+      required: false
+      schema:
+        type: string
+        minLength: 2
+        maxLength: 255
+    yearFromParam:
+      name: year_from
+      in: query
+      description: Filter by minimum publication year
+      required: false
+      schema:
+        type: integer
+        minimum: 1900
+        maximum: 2030
+    yearToParam:
+      name: year_to
+      in: query
+      description: Filter by maximum publication year
+      required: false
+      schema:
+        type: integer
+        minimum: 1900
+        maximum: 2030
+  responses:
+    Success:
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SuccessEnvelope"
+    BadRequest:
+      description: Bad request - Invalid input parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            status: error
+            message: Invalid venue ID
+            code: VALIDATION_ERROR
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            status: error
+            message: Resource not found
+            code: NOT_FOUND
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            status: error
+            message: Internal server error
+            code: INTERNAL_ERROR
+    RateLimitExceeded:
+      description: Rate limit exceeded - Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            status: error
+            message: Rate limit exceeded. Please try again later.
+            code: RATE_LIMIT_EXCEEDED
+    Forbidden:
+      description: Access forbidden - Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            status: error
+            message: Access forbidden
+            code: FORBIDDEN
+tags:
+  - name: Health
+    description: "System monitoring: API status, DB/cache/Sphinx checks, metrics."
+    externalDocs:
+      description: Monitoring Documentation
+      url: https://ethnos.app
+  - name: Security
+    description: Security metrics, rate limiting stats, IP management (access key required).
+    externalDocs:
+      description: Security Documentation
+      url: https://ethnos.app
+  - name: Works
+    description: "Academic publications: articles, books, chapters, theses, conferences."
+    externalDocs:
+      description: Works API Documentation
+      url: https://ethnos.app
+  - name: Persons
+    description: Researcher profiles, identifiers, affiliations, publication history.
+    externalDocs:
+      description: Persons API Documentation
+      url: https://ethnos.app
+  - name: Organizations
+    description: "Institutional data: universities, institutes, companies,
+      government, NGOs."
+    externalDocs:
+      description: Organizations API Documentation
+      url: https://ethnos.app
+  - name: Search
+    description: Full-text search (Sphinx when enabled) with filters and autocomplete.
+    externalDocs:
+      description: Search API Documentation
+      url: https://ethnos.app
+  - name: Citations
+    description: Citations, references, metrics, and citation networks.
+    externalDocs:
+      description: Citations API Documentation
+      url: https://ethnos.app
+  - name: Collaborations
+    description: Co-authorship analysis, collaboration networks and rankings.
+    externalDocs:
+      description: Collaborations API Documentation
+      url: https://ethnos.app
+  - name: Metrics
+    description: System analytics and dashboards (access key required).
+    externalDocs:
+      description: Metrics API Documentation
+      url: https://ethnos.app
+  - name: Venues
+    description: "Publication venues: journals, conferences, repositories, book series."
+    externalDocs:
+      description: Venues API Documentation
+      url: https://ethnos.app
+  - name: Dashboard
+    description: Real-time analytics and trends (access key required).
+  - name: Courses
+    description: Academic courses with instructors, bibliography and subjects.
+    externalDocs:
+      description: Courses API Documentation
+      url: https://ethnos.app
+  - name: Instructors
+    description: Instructors, course history, bibliography usage and expertise.
+    externalDocs:
+      description: Instructors API Documentation
+      url: https://ethnos.app
+  - name: Bibliography
+    description: Course bibliography, usage analysis, assignments.
+    externalDocs:
+      description: Bibliography API Documentation
+      url: https://ethnos.app
+  - name: Signatures
+    description: Name signatures and author identification
+paths:
+  "/works/{id}/citations":
+    get:
+      summary: Get works that cite this work
+      tags:
+        - Citations
+      description: Retrieve all works that cite the specified work with citation
+        context and metrics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Work ID
+          schema:
+            type: integer
+            example: 1
+        - name: type
+          in: query
+          description: Filter by citation type
+          schema:
+            type: string
+            enum:
+              - all
+              - POSITIVE
+              - NEUTRAL
+              - NEGATIVE
+              - SELF
+            default: all
+        - $ref: "#/components/parameters/pageParam"
+        - $ref: "#/components/parameters/limitParam"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  "/works/{id}/references":
+    get:
+      summary: Get works referenced by this work
+      tags:
+        - Citations
+      description: Retrieve all works referenced/cited by the specified work
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Work ID
+          schema:
+            type: integer
+            example: 1
+        - $ref: "#/components/parameters/pageParam"
+        - $ref: "#/components/parameters/limitParam"
+      responses:
+        "200":
+          description: References retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      work_id:
+                        type: integer
+                      referenced_works:
+                        type: array
+                        items:
+                          type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+  "/works/{id}/metrics":
+    get:
+      summary: Get bibliometric metrics for a work
+      tags:
+        - Citations
+      description: Retrieve comprehensive citation metrics and impact indicators
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Work ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  "/works/{id}/network":
+    get:
+      summary: Get citation network for a work
+      tags:
+        - Citations
+      description: Build citation network showing relationships between works
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Work ID
+          schema:
+            type: integer
+            example: 1
+        - name: depth
+          in: query
+          description: Network depth (1-3 levels)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3
+            default: 1
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  "/persons/{id}/collaborators":
+    get:
+      summary: Get collaborators for a person
+      tags:
+        - Collaborations
+      description: Retrieve all research collaborators for a specific person with
+        collaboration metrics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Person ID
+          schema:
+            type: integer
+            example: 1
+        - name: min_collaborations
+          in: query
+          description: Minimum number of collaborations to include
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 2
+        - name: sort_by
+          in: query
+          description: Sort criteria
+          schema:
+            type: string
+            enum:
+              - collaboration_count
+              - latest_collaboration_year
+              - avg_citations_together
+            default: collaboration_count
+        - $ref: "#/components/parameters/pageParam"
+        - $ref: "#/components/parameters/limitParam"
+      responses:
+        "200":
+          description: Collaborators retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      person_id:
+                        type: integer
+                      collaborators:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            collaborator_id:
+                              type: integer
+                            collaborator_name:
+                              type: string
+                            collaboration_metrics:
+                              type: object
+                              properties:
+                                total_collaborations:
+                                  type: integer
+                                collaboration_span_years:
+                                  type: integer
+                                avg_citations_together:
+                                  type: number
+                                open_access_percentage:
+                                  type: number
+                            collaboration_strength:
+                              type: string
+                              enum:
+                                - very_strong
+                                - strong
+                                - moderate
+                                - weak
+                      pagination:
+                        $ref: "#/components/schemas/PaginationMeta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  "/persons/{id}/network":
+    get:
+      summary: Get collaboration network for a person
+      tags:
+        - Collaborations
+      description: Build collaboration network showing research relationships
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Person ID
+          schema:
+            type: integer
+            example: 1
+        - name: depth
+          in: query
+          description: Network depth (1-3 levels)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3
+            default: 2
+      responses:
+        "200":
+          description: Collaboration network retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      central_person_id:
+                        type: integer
+                      network_depth:
+                        type: integer
+                      nodes:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            name:
+                              type: string
+                            type:
+                              type: string
+                              enum:
+                                - central
+                                - direct_collaborator
+                                - second_degree_collaborator
+                            level:
+                              type: integer
+                      edges:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            source:
+                              type: integer
+                            target:
+                              type: integer
+                            weight:
+                              type: integer
+                            relationship:
+                              type: string
+                      network_stats:
+                        type: object
+                        properties:
+                          total_nodes:
+                            type: integer
+                          total_edges:
+                            type: integer
+                          direct_collaborators:
+                            type: integer
+                          network_density:
+                            type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /collaborations/top:
+    get:
+      summary: Get top research collaborations
+      tags:
+        - Collaborations
+      description: Retrieve the most productive research partnerships
+      parameters:
+        - name: min_collaborations
+          in: query
+          description: Minimum collaborations required
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 5
+        - name: year_from
+          in: query
+          description: Filter collaborations from this year
+          schema:
+            type: integer
+            example: 2020
+        - name: year_to
+          in: query
+          description: Filter collaborations up to this year
+          schema:
+            type: integer
+            example: 2024
+        - $ref: "#/components/parameters/limitParam"
+      responses:
+        "200":
+          description: Top collaborations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      top_collaborations:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            collaboration_pair:
+                              type: object
+                              properties:
+                                person1:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: integer
+                                    name:
+                                      type: string
+                                person2:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: integer
+                                    name:
+                                      type: string
+                            collaboration_metrics:
+                              type: object
+                            collaboration_strength:
+                              type: string
+                      summary:
+                        type: object
+                        properties:
+                          total_partnerships:
+                            type: integer
+                          avg_collaborations:
+                            type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /dashboard/overview:
+    get:
+      summary: Get complete system overview for dashboard
+      tags:
+        - Dashboard
+      security:
+        - XAccessKey: []
+      responses:
+        "200":
+          description: Complete dashboard overview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      search_performance:
+                        type: object
+                      system_health:
+                        type: object
+                      recent_activity:
+                        type: object
+  /dashboard/performance:
+    get:
+      summary: Get detailed performance metrics for charts
+      tags:
+        - Dashboard
+      security:
+        - XAccessKey: []
+      parameters:
+        - name: hours
+          in: query
+          description: Number of hours of data to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 168
+            default: 24
+      responses:
+        "200":
+          description: Performance metrics for visualization
+  /dashboard/search-trends:
+    get:
+      summary: Get search trends and popular queries
+      tags:
+        - Dashboard
+      security:
+        - XAccessKey: []
+      responses:
+        "200":
+          description: Search trends analysis
+  /dashboard/alerts:
+    get:
+      summary: Get current system alerts and warnings
+      tags:
+        - Dashboard
+      security:
+        - XAccessKey: []
+      responses:
+        "200":
+          description: Current system alerts
+  /health:
+    get:
+      summary: Get comprehensive health status
+      tags:
+        - Health
+      description: Returns detailed health information including database, cache, and
+        system metrics
+      security:
+        - XAccessKey: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "503":
+          $ref: "#/components/responses/Success"
+  /health/ready:
+    get:
+      summary: Kubernetes readiness probe
+      description: Check if the service is ready to accept requests. Validates
+        database connectivity and essential dependencies.
+      tags:
+        - Health
+      security:
+        - XAccessKey: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "503":
+          $ref: "#/components/responses/BadRequest"
+  /health/live:
+    get:
+      summary: Kubernetes liveness probe
+      description: Basic health check to verify the service is running and responsive.
+        Always returns success if the service is operational.
+      tags:
+        - Health
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /health/metrics:
+    get:
+      summary: Get detailed monitoring metrics
+      tags:
+        - Health
+      description: Returns comprehensive performance and system metrics for monitoring
+      security:
+        - XAccessKey: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /metrics/dashboard:
+    get:
+      summary: Dashboard overview with key statistics
+      tags:
+        - Metrics
+      description: Get comprehensive overview including total counts and recent trends
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  totals:
+                    type: object
+                    properties:
+                      total_works:
+                        type: integer
+                        example: 650645
+                      total_persons:
+                        type: integer
+                        example: 385670
+                      total_organizations:
+                        type: integer
+                        example: 235833
+                  recent_trends:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        year:
+                          type: integer
+                        total_publications:
+                          type: integer
+                        unique_authors:
+                          type: integer
+                  meta:
+                    type: object
+                    properties:
+                      query_time_ms:
+                        type: integer
+  /metrics/annual:
+    get:
+      summary: Annual publication statistics
+      tags:
+        - Metrics
+      description: Get yearly statistics from the v_annual_stats view
+      parameters:
+        - name: year_from
+          in: query
+          description: Starting year for filtering
+          schema:
+            type: integer
+            example: 2020
+        - name: year_to
+          in: query
+          description: Ending year for filtering
+          schema:
+            type: integer
+            example: 2024
+        - $ref: "#/components/parameters/limitParam"
+      responses:
+        "200":
+          description: Annual statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        year:
+                          type: integer
+                        total_publications:
+                          type: integer
+                        open_access_count:
+                          type: integer
+                        articles:
+                          type: integer
+                        unique_authors:
+                          type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /metrics/venues:
+    get:
+      summary: Top venues by publication impact
+      description: Get the top academic venues ranked by publication count, citation
+        metrics, and impact factors.
+      tags:
+        - Metrics
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Number of venues to return (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Top venues list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Venue"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /metrics/institutions:
+    get:
+      summary: Institution productivity ranking
+      description: Get academic institutions ranked by research productivity,
+        publication count, citation metrics, and H-index.
+      tags:
+        - Metrics
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Number of institutions to return (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: country_code
+          in: query
+          required: false
+          description: Filter by country code
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 3
+            example: BR
+      responses:
+        "200":
+          description: Institution productivity ranking
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Organization"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /metrics/persons:
+    get:
+      summary: Person production analytics
+      description: Get researchers ranked by publication productivity, citation
+        metrics, H-index, and collaboration indicators.
+      tags:
+        - Metrics
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Number of persons to return (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: min_works
+          in: query
+          required: false
+          description: Minimum number of works
+          schema:
+            type: integer
+            minimum: 1
+            default: 5
+      responses:
+        "200":
+          description: Person production metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Person"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /metrics/collaborations:
+    get:
+      summary: Collaboration network statistics
+      description: Get statistics on research collaboration networks, including top
+        collaborator pairs, collaboration patterns, and network metrics.
+      tags:
+        - Metrics
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Number of collaborations to return (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: min_collaborations
+          in: query
+          required: false
+          description: Minimum number of collaborative works
+          schema:
+            type: integer
+            minimum: 2
+            default: 3
+      responses:
+        "200":
+          description: Collaboration network statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Collaboration"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /metrics/sphinx:
+    get:
+      summary: Get Sphinx search engine performance metrics
+      tags:
+        - Metrics
+      description: Comprehensive performance and health metrics for the Sphinx search engine
+      responses:
+        "200":
+          description: Sphinx performance metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      queries_per_second:
+                        type: number
+                      avg_response_time:
+                        type: number
+                      error_rate:
+                        type: number
+                      index_size_mb:
+                        type: number
+                      uptime_seconds:
+                        type: integer
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /metrics/sphinx/detailed:
+    get:
+      summary: Get detailed Sphinx performance metrics with query history
+      tags:
+        - Metrics
+      description: Detailed Sphinx metrics including recent query performance and
+        distribution analysis
+      responses:
+        "200":
+          description: Detailed Sphinx metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      metrics:
+                        type: object
+                      recent_queries:
+                        type: array
+                        items:
+                          type: object
+                      performance_distribution:
+                        type: object
+  /organizations:
+    get:
+      summary: Get list of academic institutions and organizations
+      description: Retrieve a paginated list of academic institutions including
+        universities, research institutes, companies, and government
+        organizations. Supports filtering by location, type, and name.
+      tags:
+        - Organizations
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page (max 100)
+        - in: query
+          name: search
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 255
+          description: Search term to filter organizations by name
+          example: Stanford University
+        - in: query
+          name: country
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+          description: Filter by country
+          example: United States
+        - in: query
+          name: region
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+          description: Filter by geographical region
+          example: North America
+        - in: query
+          name: type
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 50
+          description: Filter by organization type
+          example: University
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  "/organizations/{id}":
+    get:
+      summary: Get specific organization by ID
+      description: Retrieve detailed information about a specific academic institution
+        or organization by their unique identifier.
+      tags:
+        - Organizations
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique identifier of the organization
+          example: 1234
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  "/organizations/{id}/works":
+    get:
+      summary: Get works published by organization members
+      description: Retrieve a paginated list of academic works (publications, papers,
+        articles) authored by members affiliated with the specified
+        organization. Supports filtering by work type, publication year, and
+        language.
+      tags:
+        - Organizations
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique identifier of the organization
+          example: 1234
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page (max 100)
+        - in: query
+          name: type
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 50
+          description: Filter by work type (e.g., article, book, conference paper)
+          example: article
+        - in: query
+          name: year_from
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2024
+          description: Filter works published from this year onwards
+          example: 2020
+        - in: query
+          name: year_to
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2024
+          description: Filter works published up to this year
+          example: 2024
+        - in: query
+          name: language
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 10
+          description: Filter by publication language
+          example: en
+      responses:
+        "200":
+          description: Organization works retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 12345
+                        title:
+                          type: string
+                          example: Machine Learning Applications in Healthcare
+                        type:
+                          type: string
+                          example: article
+                        language:
+                          type: string
+                          example: en
+                        peer_reviewed:
+                          type: boolean
+                          example: true
+                        open_access:
+                          type: boolean
+                          example: true
+                        publication:
+                          type: object
+                          properties:
+                            year:
+                              type: integer
+                              example: 2023
+                            doi:
+                              type: string
+                              example: 10.1000/182
+                            journal:
+                              type: string
+                              example: Journal of Medical AI
+                            volume:
+                              type: string
+                              example: "15"
+                            issue:
+                              type: string
+                              example: "3"
+                            pages:
+                              type: string
+                              example: 123-145
+                        authors:
+                          type: object
+                          properties:
+                            author_string:
+                              type: string
+                              example: Smith, John; Doe, Jane; Johnson, Bob
+                            author_count:
+                              type: integer
+                              example: 3
+                            first_author_name:
+                              type: string
+                              example: John Smith
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 20
+                      total:
+                        type: integer
+                        example: 1250
+                      totalPages:
+                        type: integer
+                        example: 63
+                      hasNext:
+                        type: boolean
+                        example: true
+                      hasPrev:
+                        type: boolean
+                        example: false
+        "400":
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Organization not found or has no works
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          description: Internal server error
+  /persons:
+    get:
+      summary: Get list of researchers and authors
+      description: Retrieve a paginated list of academic researchers and authors.
+        Supports filtering by name, affiliation, country, and verification
+        status.
+      tags:
+        - Persons
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page (max 100)
+        - in: query
+          name: search
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 255
+          description: Search term to filter persons by name
+          example: John Smith
+        - in: query
+          name: affiliation
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 255
+          description: Filter by institutional affiliation
+          example: Stanford University
+        - in: query
+          name: country
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+          description: Filter by country
+          example: United States
+        - in: query
+          name: signature
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+          description: Filter by author signature or identifier
+          example: j.smith
+        - in: query
+          name: verified
+          schema:
+            type: boolean
+          description: Filter by verification status
+          example: true
+      responses:
+        "200":
+          description: List of persons retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Person"
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 20
+                      total:
+                        type: integer
+                        example: 385678
+                      totalPages:
+                        type: integer
+                        example: 19284
+                      hasNext:
+                        type: boolean
+                        example: true
+                      hasPrev:
+                        type: boolean
+                        example: false
+        "400":
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          description: Internal server error
+  "/persons/{id}":
+    get:
+      summary: Get specific researcher by ID
+      description: Retrieve detailed information about a specific researcher or author
+        by their unique identifier.
+      tags:
+        - Persons
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique identifier of the person
+          example: 5952
+      responses:
+        "200":
+          description: Person details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: "#/components/schemas/Person"
+        "400":
+          description: Invalid person ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Person not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          description: Internal server error
+  "/persons/{id}/signatures":
+    get:
+      summary: Get signatures linked to a person
+      description: Retrieve all name signatures associated with a specific person
+      tags:
+        - Persons
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Person ID
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Results per page
+      responses:
+        "200":
+          description: Signatures retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: Signature ID
+                        signature:
+                          type: string
+                          description: Name signature
+                        created_at:
+                          type: string
+                          format: date-time
+                        persons_count:
+                          type: integer
+                          description: Total persons with this signature
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      totalPages:
+                        type: integer
+                      hasNext:
+                        type: boolean
+                      hasPrev:
+                        type: boolean
+        "404":
+          description: Person not found
+        "500":
+          description: Internal server error
+  "/persons/{id}/works":
+    get:
+      summary: Get works authored/edited by a person
+      description: Retrieve all academic works (publications) authored or edited by a
+        specific person
+      tags:
+        - Persons
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Person ID
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Results per page
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum:
+              - AUTHOR
+              - EDITOR
+          description: Filter by role (AUTHOR or EDITOR)
+      responses:
+        "200":
+          description: Works retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: Work ID
+                        title:
+                          type: string
+                          description: Work title
+                        subtitle:
+                          type: string
+                          description: Work subtitle
+                        type:
+                          type: string
+                          description: Type of work
+                        language:
+                          type: string
+                          description: Publication language
+                        doi:
+                          type: string
+                          description: DOI identifier
+                        authorship:
+                          type: object
+                          properties:
+                            role:
+                              type: string
+                              enum:
+                                - AUTHOR
+                                - EDITOR
+                              description: Person's role in this work
+                            position:
+                              type: integer
+                              description: Position in author list
+                            is_corresponding:
+                              type: boolean
+                              description: Whether this person is corresponding author
+                        publication:
+                          type: object
+                          properties:
+                            year:
+                              type: integer
+                              description: Publication year
+                            journal:
+                              type: string
+                              description: Journal name
+                            volume:
+                              type: string
+                              description: Volume number
+                            issue:
+                              type: string
+                              description: Issue number
+                            pages:
+                              type: string
+                              description: Page range
+                        authors:
+                          type: object
+                          properties:
+                            total_count:
+                              type: integer
+                              description: Total number of authors
+                            author_string:
+                              type: string
+                              description: Full author list string
+                        created_at:
+                          type: string
+                          format: date-time
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      totalPages:
+                        type: integer
+                      hasNext:
+                        type: boolean
+                      hasPrev:
+                        type: boolean
+        "404":
+          description: Person not found
+        "500":
+          description: Internal server error
+  /search/works:
+    get:
+      summary: Search works using full-text search
+      tags:
+        - Search
+      description: Search academic works by title, subtitle, and abstract using MySQL
+        FULLTEXT indexes
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query (minimum 2 characters)
+          schema:
+            type: string
+            minLength: 2
+            example: machine learning
+        - name: type
+          in: query
+          description: Filter by work type
+          schema:
+            type: string
+            example: ARTICLE
+        - name: language
+          in: query
+          description: Filter by language
+          schema:
+            type: string
+            example: en
+        - name: year_from
+          in: query
+          description: Filter by minimum publication year
+          schema:
+            type: integer
+            example: 2020
+        - $ref: "#/components/parameters/pageParam"
+        - $ref: "#/components/parameters/limitParam"
+        - name: include_facets
+          in: query
+          description: When set, includes Sphinx-computed facets (requires Sphinx)
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /search/global:
+    get:
+      summary: Global search across all entities
+      tags:
+        - Search
+      description: Perform simultaneous search across works and persons (organizations
+        search disabled for performance)
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+            minLength: 2
+            example: artificial intelligence
+        - name: limit
+          in: query
+          description: Limit per entity type
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
+      responses:
+        "200":
+          description: Combined search results from all entities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  works:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      results:
+                        type: array
+                  persons:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      results:
+                        type: array
+                  organizations:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      results:
+                        type: array
+                  meta:
+                    type: object
+                    properties:
+                      query_time_ms:
+                        type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /search/persons:
+    get:
+      summary: Search persons/researchers by name
+      description: Search for researchers and authors using full-text search across
+        name fields. Returns results with relevance scoring and supports
+        filtering by affiliation and verification status.
+      tags:
+        - Search
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query for person names (minimum 2 characters)
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 255
+            example: John Smith
+        - $ref: "#/components/parameters/pageParam"
+        - $ref: "#/components/parameters/limitParam"
+      responses:
+        "200":
+          description: Person search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Person"
+                  pagination:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /search/advanced:
+    get:
+      summary: Advanced faceted search with filters
+      tags:
+        - Search
+      description: Enhanced search with faceted results including years, work types,
+        languages, venues, and authors
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+            minLength: 2
+            example: machine learning
+        - name: limit
+          in: query
+          description: Number of results to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Advanced search results with facets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      results:
+                        type: array
+                        items:
+                          type: object
+                      facets:
+                        type: object
+                        properties:
+                          years:
+                            type: array
+                          work_types:
+                            type: array
+                          languages:
+                            type: array
+                          venues:
+                            type: array
+                          authors:
+                            type: array
+                      meta:
+                        type: object
+                        properties:
+                          search_engine:
+                            type: string
+                          faceted_search:
+                            type: boolean
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /search/autocomplete:
+    get:
+      summary: Get autocomplete suggestions for search queries
+      tags:
+        - Search
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query for suggestions
+          schema:
+            type: string
+            minLength: 2
+        - name: type
+          in: query
+          description: Type of suggestions
+          schema:
+            type: string
+            enum:
+              - all
+              - titles
+              - authors
+              - venues
+            default: all
+        - name: limit
+          in: query
+          description: Maximum suggestions to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+      responses:
+        "200":
+          description: Autocomplete suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      suggestions:
+                        type: array
+                        items:
+                          type: object
+  /search/popular:
+    get:
+      summary: Get popular search terms
+      tags:
+        - Search
+      responses:
+        "200":
+          description: Popular search terms
+  /security/headers:
+    get:
+      summary: Inspect active security headers and CORS configuration
+      description: Returns the currently active HTTP security headers as set by
+        middleware and the effective CORS configuration. Requires internal
+        access key.
+      tags:
+        - Security
+      security:
+        - XAccessKey: []
+      responses:
+        "200":
+          description: Security headers snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      headers:
+                        type: object
+                      cors:
+                        type: object
+                      missing_headers:
+                        type: array
+                        items:
+                          type: string
+  /security/audit:
+    get:
+      summary: Audit protected routes for access key enforcement
+      description: Quick static sweep of key route groups to verify internal access
+        key enforcement.
+      tags:
+        - Security
+      security:
+        - XAccessKey: []
+      responses:
+        "200":
+          description: Audit results
+  /security/stats:
+    get:
+      summary: Get security monitoring statistics
+      description: Returns rate limiting violations, blocked IPs, and security metrics
+      tags:
+        - Security
+      security:
+        - XAccessKey: []
+      responses:
+        "200":
+          description: Security statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      violations:
+                        type: object
+                        description: IP addresses with recent violations
+                      blocked_ips:
+                        type: array
+                        items:
+                          type: string
+                        description: Currently blocked IP addresses
+                      stats:
+                        type: object
+                        properties:
+                          total_blocked:
+                            type: number
+                          total_violations:
+                            type: number
+  "/security/unblock/{ip}":
+    post:
+      summary: Unblock an IP address (admin function)
+      description: Remove an IP from the blocked list
+      tags:
+        - Security
+      security:
+        - XAccessKey: []
+      parameters:
+        - in: path
+          name: ip
+          required: true
+          schema:
+            type: string
+          description: IP address to unblock
+      responses:
+        "200":
+          description: IP unblocked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: IP unblocked successfully
+        "400":
+          description: Invalid IP format
+        "404":
+          description: IP not found in blocked list
+  /signatures:
+    get:
+      summary: Get list of name signatures
+      description: Retrieve a paginated list of author name signatures with filtering
+        and sorting options
+      tags:
+        - Signatures
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page (max 100)
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of items to skip
+        - in: query
+          name: search
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          description: Search term to filter signatures
+          example: Smith
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum:
+              - signature
+              - created_at
+              - id
+          description: Field to sort by
+          example: signature
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum:
+              - ASC
+              - DESC
+          description: Sort order
+          example: ASC
+        - in: query
+          name: light
+          schema:
+            type: boolean
+            default: false
+          description: If true, omits expensive counts to speed up listing
+      responses:
+        "200":
+          description: List of signatures retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Signature"
+                  pagination:
+                    type: object
+                    properties:
+                      limit:
+                        type: integer
+                        example: 20
+                      offset:
+                        type: integer
+                        example: 0
+                      total:
+                        type: integer
+                        example: 378134
+                      hasNext:
+                        type: boolean
+                        example: true
+                      hasPrev:
+                        type: boolean
+                        example: false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /signatures/statistics:
+    get:
+      summary: Get signature statistics
+      description: Retrieve comprehensive statistics about signatures in the system
+      tags:
+        - Signatures
+      responses:
+        "200":
+          description: Signature statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total_signatures:
+                        type: integer
+                        example: 378134
+                      average_signature_length:
+                        type: number
+                        format: float
+                        example: 10.17
+                      total_characters:
+                        type: integer
+                        example: 3847823
+                      shortest_signature:
+                        type: integer
+                        example: 1
+                      longest_signature:
+                        type: integer
+                        example: 255
+        "500":
+          description: Internal server error
+  /signatures/search:
+    get:
+      summary: Search signatures
+      description: Search for signatures by name with exact and fuzzy matching options
+      tags:
+        - Signatures
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          description: Search query for signature name
+          example: J. Smith
+        - in: query
+          name: exact
+          schema:
+            type: boolean
+            default: false
+          description: Whether to perform exact matching
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of items to skip
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Signature"
+                  pagination:
+                    type: object
+                  query:
+                    type: string
+                    example: J. Smith
+                  exact_match:
+                    type: boolean
+                    example: false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  "/signatures/{id}":
+    get:
+      summary: Get signature by ID
+      description: Retrieve detailed information about a specific signature
+      tags:
+        - Signatures
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Signature ID
+          example: 123
+      responses:
+        "200":
+          description: Signature details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: "#/components/schemas/Signature"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  "/signatures/{id}/persons":
+    get:
+      summary: Get persons associated with a signature
+      description: Retrieve all persons associated with a specific signature
+      tags:
+        - Signatures
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Signature ID
+          example: 123
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of items to skip
+      responses:
+        "200":
+          description: Associated persons
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Person"
+                  pagination:
+                    type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+  "/signatures/{id}/works":
+    get:
+      summary: Get works associated with a signature
+      description: Retrieve all academic works (publications) associated with a
+        specific signature
+      tags:
+        - Signatures
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Signature ID
+          example: 92152
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Results per page
+      responses:
+        "200":
+          description: Works retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: Work ID
+                        title:
+                          type: string
+                          description: Work title
+                        subtitle:
+                          type: string
+                          description: Work subtitle
+                        type:
+                          type: string
+                          description: Type of work
+                        language:
+                          type: string
+                          description: Publication language
+                        doi:
+                          type: string
+                          description: DOI identifier
+                        authorship:
+                          type: object
+                          properties:
+                            role:
+                              type: string
+                              enum:
+                                - AUTHOR
+                                - EDITOR
+                              description: Person's role in this work
+                            position:
+                              type: integer
+                              description: Position in author list
+                            is_corresponding:
+                              type: boolean
+                              description: Whether this person is corresponding author
+                            person_id:
+                              type: integer
+                              description: Person ID
+                            person_name:
+                              type: string
+                              description: Person name
+                        publication:
+                          type: object
+                          properties:
+                            year:
+                              type: integer
+                              description: Publication year
+                            journal:
+                              type: string
+                              description: Journal name
+                            volume:
+                              type: string
+                              description: Volume number
+                            issue:
+                              type: string
+                              description: Issue number
+                            pages:
+                              type: string
+                              description: Page range
+                        authors:
+                          type: object
+                          properties:
+                            total_count:
+                              type: integer
+                              description: Total number of authors
+                            author_string:
+                              type: string
+                              description: Full author list string
+                        created_at:
+                          type: string
+                          format: date-time
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      totalPages:
+                        type: integer
+                      hasNext:
+                        type: boolean
+                      hasPrev:
+                        type: boolean
+        "404":
+          description: Signature not found
+        "500":
+          description: Internal server error
+  /search/sphinx:
+    get:
+      tags:
+        - Search (Sphinx POC)
+      summary: Search works using Sphinx Search Engine (POC)
+      description: Full-text search through academic works using Sphinx with advanced
+        relevance ranking and faceted filtering
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            minLength: 2
+          description: Search query string
+          example: social development research
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of results to skip
+        - in: query
+          name: year
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2030
+          description: Filter by publication year
+        - in: query
+          name: work_type
+          schema:
+            type: string
+            enum:
+              - ARTICLE
+              - BOOK
+              - CHAPTER
+              - CONFERENCE
+              - REPORT
+              - THESIS
+              - OTHER
+          description: Filter by work type
+        - in: query
+          name: language
+          schema:
+            type: string
+          description: Filter by language code
+        - in: query
+          name: peer_reviewed
+          schema:
+            type: boolean
+          description: Filter by peer review status
+        - in: query
+          name: facets
+          schema:
+            type: boolean
+            default: false
+          description: Include faceted search results
+      responses:
+        "200":
+          description: Search results with relevance scores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      results:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            title:
+                              type: string
+                            subtitle:
+                              type: string
+                            abstract:
+                              type: string
+                            author_string:
+                              type: string
+                            venue_name:
+                              type: string
+                            doi:
+                              type: string
+                            year:
+                              type: integer
+                            work_type:
+                              type: string
+                            language:
+                              type: string
+                            peer_reviewed:
+                              type: boolean
+                            relevance_score:
+                              type: number
+                              description: Sphinx relevance score (higher = more relevant)
+                      query_time:
+                        type: integer
+                        description: Query execution time in milliseconds
+                      total:
+                        type: integer
+                        description: Number of results returned
+                      facets:
+                        type: object
+                        description: Faceted search results (if requested)
+                        properties:
+                          years:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                value:
+                                  type: integer
+                                count:
+                                  type: integer
+                          work_types:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                value:
+                                  type: string
+                                count:
+                                  type: integer
+                          languages:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                value:
+                                  type: string
+                                count:
+                                  type: integer
+                  performance:
+                    type: object
+                    properties:
+                      search_engine:
+                        type: string
+                        example: Sphinx
+                      query_time_ms:
+                        type: integer
+                      total_time_ms:
+                        type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /search/sphinx/status:
+    get:
+      tags:
+        - Search (Sphinx POC)
+      summary: Get Sphinx Search engine status
+      description: Retrieve status and performance metrics from Sphinx Search engine
+      responses:
+        "200":
+          description: Sphinx status information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      connected:
+                        type: boolean
+                      uptime:
+                        type: integer
+                        description: Uptime in seconds
+                      queries:
+                        type: integer
+                        description: Total queries processed
+                      avg_query_time:
+                        type: number
+                        description: Average query time
+                      connections:
+                        type: integer
+                        description: Total connections made
+                      performance:
+                        type: object
+                        properties:
+                          query_wall:
+                            type: number
+                          queries_per_second:
+                            type: string
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /search/sphinx/compare:
+    get:
+      tags:
+        - Search (Sphinx POC)
+      summary: Compare Sphinx vs MariaDB search performance
+      description: Run the same query on both Sphinx and MariaDB FULLTEXT to compare
+        performance
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            minLength: 2
+          description: Search query for comparison
+      responses:
+        "200":
+          description: Performance comparison results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      sphinx:
+                        type: object
+                        properties:
+                          results:
+                            type: integer
+                          time_ms:
+                            type: integer
+                          engine:
+                            type: string
+                      mariadb:
+                        type: object
+                        properties:
+                          results:
+                            type: integer
+                          time_ms:
+                            type: integer
+                          engine:
+                            type: string
+                      performance_ratio:
+                        type: number
+                        description: How many times faster Sphinx is
+  /venues:
+    get:
+      summary: Get list of academic venues
+      description: Retrieve a paginated list of academic venues including journals,
+        conferences, repositories, and book series. Supports filtering and
+        sorting.
+      tags:
+        - Venues
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page (max 100)
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+          description: Number of items to skip (alternative to page parameter)
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum:
+              - JOURNAL
+              - CONFERENCE
+              - REPOSITORY
+              - BOOK_SERIES
+          description: Filter by venue type
+          example: JOURNAL
+        - in: query
+          name: search
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+          description: Search term to filter venues by name
+          example: Nature
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum:
+              - name
+              - type
+              - impact_factor
+              - works_count
+              - id
+          description: Field to sort by
+          example: works_count
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum:
+              - ASC
+              - DESC
+          description: Sort order
+          example: DESC
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /venues/statistics:
+    get:
+      summary: Get venue statistics
+      description: Retrieve comprehensive statistics about venues in the system
+        including type distribution and metrics
+      tags:
+        - Venues
+      responses:
+        "200":
+          description: Venue statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total_venues:
+                        type: integer
+                        example: 1563
+                      by_type:
+                        type: object
+                        properties:
+                          JOURNAL:
+                            type: integer
+                            example: 892
+                          CONFERENCE:
+                            type: integer
+                            example: 445
+                          REPOSITORY:
+                            type: integer
+                            example: 156
+                          BOOK_SERIES:
+                            type: integer
+                            example: 70
+                      avg_impact_factor:
+                        type: number
+                        format: float
+                        example: 3.2
+        "500":
+          description: Internal server error
+  /venues/search:
+    get:
+      summary: Search venues
+      description: Search for venues by name and filter by type
+      tags:
+        - Venues
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+          description: Search query for venue name
+          example: Nature
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum:
+              - JOURNAL
+              - CONFERENCE
+              - REPOSITORY
+              - BOOK_SERIES
+          description: Filter by venue type
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of items to skip
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Venue"
+                  pagination:
+                    type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  "/venues/{id}":
+    get:
+      summary: Get venue by ID
+      description: Retrieve detailed information about a specific venue
+      tags:
+        - Venues
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Venue ID
+          example: 1
+      responses:
+        "200":
+          description: Venue details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: "#/components/schemas/Venue"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  "/venues/{id}/works":
+    get:
+      summary: Get works published in a venue with citations and authors
+      description: Retrieve all works published in a specific venue ordered by
+        citation count and publication year, including complete author
+        information
+      tags:
+        - Venues
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Venue ID
+          example: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of items to skip
+        - in: query
+          name: year
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Filter by publication year
+      responses:
+        "200":
+          description: Works in venue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Work"
+                  pagination:
+                    type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+  "/venues/{id}/publications":
+    get:
+      summary: Get publications in a venue (alias for works)
+      description: Alternative endpoint for retrieving works published in a specific venue
+      tags:
+        - Venues
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Venue ID
+          example: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of items to skip
+        - in: query
+          name: year
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Filter by publication year
+      responses:
+        "200":
+          description: Publications in venue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Work"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /works:
+    get:
+      summary: Get list of academic works
+      description: Retrieve a paginated list of academic publications including
+        papers, books, theses, and conference proceedings. Supports filtering by
+        various criteria.
+      tags:
+        - Works
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 20
+          description: Number of results per page (max 20)
+        - in: query
+          name: search
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 255
+          description: Search term to filter works by title or content
+          example: machine learning
+        - in: query
+          name: type
+          schema:
+            type: string
+            maxLength: 50
+          description: Filter by work type (article, book, thesis, etc.)
+          example: ARTICLE
+        - in: query
+          name: year_from
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 2030
+          description: Filter works published from this year onwards
+          example: 2020
+        - in: query
+          name: year_to
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 2030
+          description: Filter works published up to this year
+          example: 2023
+        - in: query
+          name: is_open_access
+          schema:
+            type: boolean
+          description: Filter by open access availability
+          example: true
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /works/vitrine:
+    get:
+      summary: Get works list optimized for browsing (vitrine)
+      description: High-performance endpoint for browsing works using pre-compiled
+        summary table. Optimized for speed with minimal JOINs.
+      tags:
+        - Works
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page (max 100)
+        - in: query
+          name: type
+          schema:
+            type: string
+            maxLength: 50
+          description: Filter by work type
+          example: ARTICLE
+        - in: query
+          name: year_from
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 2030
+          description: Filter works from this year
+          example: 2020
+        - in: query
+          name: year_to
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 2030
+          description: Filter works up to this year
+          example: 2023
+        - in: query
+          name: language
+          schema:
+            type: string
+            maxLength: 3
+          description: Filter by language code
+          example: en
+      responses:
+        "200":
+          description: Works vitrine retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Work"
+                  pagination:
+                    $ref: "#/components/schemas/PaginationMeta"
+                  meta:
+                    type: object
+                    properties:
+                      query_source:
+                        type: string
+                        example: sphinx_works_summary
+                      performance:
+                        $ref: "#/components/schemas/PerformanceMeta"
+  "/works/{id}":
+    get:
+      summary: Get specific academic work by ID
+      description: Retrieve detailed information about a specific academic publication
+        by its unique identifier.
+      tags:
+        - Works
+      parameters:
+        - in: query
+          name: include_citations
+          required: true
+          schema:
+            type: boolean
+            minimum: 1
+            default: true
+          description: Include inline citations (cited_by) in the work payload
+          example: 123456
+        - in: query
+          name: include_references
+          schema:
+            type: boolean
+            default: true
+          description: Include inline references list in the work payload
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  "/works/{id}/bibliography":
+    get:
+      summary: Get work bibliography usage
+      description: Retrieve courses where this work is used in bibliography, with
+        instructor information
+      tags:
+        - Works
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Work ID
+          example: 2684644
+        - in: query
+          name: reading_type
+          schema:
+            type: string
+            enum:
+              - REQUIRED
+              - RECOMMENDED
+              - SUPPLEMENTARY
+              - OPTIONAL
+          description: Filter by reading type
+          example: RECOMMENDED
+        - in: query
+          name: year_from
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2030
+          description: Filter courses from this year
+          example: 2020
+        - in: query
+          name: year_to
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2030
+          description: Filter courses up to this year
+          example: 2025
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of results to skip
+      responses:
+        "200":
+          description: Work bibliography usage retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        course_id:
+                          type: integer
+                          example: 465
+                        course_name:
+                          type: string
+                          example: Antropologia do Parentesco
+                        course_year:
+                          type: integer
+                          example: 2025
+                        program_id:
+                          type: integer
+                          example: 2
+                        reading_type:
+                          type: string
+                          enum:
+                            - REQUIRED
+                            - RECOMMENDED
+                            - SUPPLEMENTARY
+                            - OPTIONAL
+                          example: RECOMMENDED
+                        instructor_count:
+                          type: integer
+                          example: 2
+                        instructors:
+                          type: string
+                          example: João Silva; Maria Santos
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
