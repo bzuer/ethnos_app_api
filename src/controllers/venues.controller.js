@@ -247,11 +247,17 @@ class VenuesController {
 
       const result = await venuesService.getVenues(options);
 
+      const includes = {
+        ...(result.meta?.includes || {}),
+        legacy_metrics: includeLegacyMetrics,
+        subjects: true,
+        terms: true,
+        keywords: true
+      };
+
       const meta = {
         ...(result.meta || {}),
-        includes: {
-          legacy_metrics: includeLegacyMetrics
-        }
+        includes
       };
 
       logger.info('Retrieved venues list', {
@@ -435,6 +441,30 @@ class VenuesController {
    *                       subject_id: { type: integer }
    *                       term: { type: string }
    *                       score: { type: number }
+   *                 subjects:
+   *                   type: array
+   *                   description: Complete list of subjects associated with the venue
+   *                   items:
+   *                     type: object
+   *                     properties:
+   *                       subject_id:
+   *                         type: integer
+   *                         nullable: true
+   *                       term:
+   *                         type: string
+   *                       score:
+   *                         type: number
+   *                         nullable: true
+   *                 terms:
+   *                   type: array
+   *                   description: Subject terms extracted from the venue subjects (ordered)
+   *                   items:
+   *                     type: string
+   *                 keywords:
+   *                   type: array
+   *                   description: Deduplicated subject terms normalized for keyword usage
+   *                   items:
+   *                     type: string
    *                     open_access_publications:
    *                       type: integer
    *                       description: Publications flagged as open access
@@ -528,6 +558,8 @@ class VenuesController {
         ...(result.meta || {}),
         includes: {
           subjects: includeSubjects,
+          terms: includeSubjects,
+          keywords: includeSubjects,
           yearly_stats: includeYearly,
           top_authors: includeTopAuthors,
           legacy_metrics: includeLegacyMetrics,
@@ -904,11 +936,17 @@ class VenuesController {
 
       const result = await venuesService.searchVenues(trimmedQuery, options);
       
+      const searchIncludes = {
+        ...(result.meta?.includes || {}),
+        legacy_metrics: includeLegacyMetrics,
+        subjects: true,
+        terms: true,
+        keywords: true
+      };
+
       const meta = {
         ...(result.meta || {}),
-        includes: {
-          legacy_metrics: includeLegacyMetrics
-        }
+        includes: searchIncludes
       };
 
       logger.info('Search venues executed', {

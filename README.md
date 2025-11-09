@@ -43,14 +43,13 @@ cd api
 npm install
 ```
 
-2. Configure environment variables (development):
+2. Configure environment variables (runtime source):
 ```bash
-cp .env.example .env
+sudo cp .env.example /etc/node-backend.env
+sudo chown $(whoami) /etc/node-backend.env
 ```
 
-3. Configure environment variables:
-- Desenvolvimento/local: edite `.env`.
-- Produção: use o arquivo do sistema `/etc/node-backend.env` (o backend carrega este caminho por padrão).
+3. Ajuste `/etc/node-backend.env` (fonte única carregada pela aplicação; utilize `.env.example` apenas como referência). Exemplo:
 ```env
 # Database Configuration (Required)
 DB_HOST=localhost
@@ -73,19 +72,14 @@ PORT=3000
 API_VERSION=v1
 ```
 
-4. Start server (desenvolvimento/local):
+4. Start server via daemon script (desenvolvimento/local/produção):
 ```bash
 ./server.sh start
 ```
 
-5. Produção (PM2 / Startup):
+5. Desenvolvimento com hot reload (opcional):
 ```bash
-pm2 start ecosystem.config.js --env production
-# opcional: habilitar startup com systemd
-pm2 startup
-pm2 save
-pm2 status
-pm2 logs ethnos-api
+npm run dev
 ```
 
 ## Project Structure
@@ -114,21 +108,10 @@ pm2 logs ethnos-api
 ./server.sh cleanup   # Manual process and port cleanup
 ```
 
-### PM2 and NPM scripts (production)
+### Deployment automation
 
 ```bash
-# Start/stop/restart managed by PM2
-npm run start:pm2
-npm run stop:pm2
-npm run restart:pm2   # applies updated env
-
-# Full deploy sequence (stop → clear cache → install → docs → reindex → test → restart)
-npm run deploy
-
-# PM2 direct (alternative to npm scripts)
-pm2 start ecosystem.config.js --env production
-pm2 restart ethnos-api --update-env
-pm2 save && pm2 status && pm2 logs ethnos-api
+npm run deploy        # Orchestrates stop → cleanup → install → docs → reindex → test → restart via server.sh
 ```
 
 ## API Documentation
@@ -143,9 +126,10 @@ pm2 save && pm2 status && pm2 logs ethnos-api
   - Endpoints internos (ex.: `/health`, `/security`, `/metrics` restritos): exigem header `X-Access-Key` com valor igual a `API_KEY` (ou chaves alternativas configuradas) no arquivo de ambiente.
   - Frontend usa proxy autenticado (same-origin) e envia `X-Access-Key` lendo `/etc/next-frontend.env`.
 
-### Environment files
-- Desenvolvimento/local: `.env`
-- Produção: `/etc/node-backend.env` (carregado automaticamente pelo backend)
+### Environment management
+- Runtime (todas as execuções): `/etc/node-backend.env`
+- Testes: `.env.test` (isolado para Jest)
+- Utilize `.env.example` apenas como referência ao preencher o arquivo do `/etc`
 
 ## Main API Categories
 

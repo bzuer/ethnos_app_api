@@ -73,14 +73,12 @@ Siga a taxonomia exposta em `src/app.js` e refletida na documentação:
 - Health
 
 ## Execução e Ambientes
-- Arquivo de ambiente (produção): `/etc/node-backend.env` (preferencial). Testes usam `.env.test`.
-- Desenvolvimento: `npm run dev`
-- Local: `npm start`
-- Produção (PM2):
-  - NPM scripts: `npm run start:pm2` / `npm run restart:pm2` / `npm run stop:pm2`
-  - Deploy completo: `npm run deploy`
-  - PM2 direto: `pm2 start ecosystem.config.js --env production`, `pm2 restart ethnos-api --update-env`, `pm2 save`, `pm2 logs ethnos-api`
-  - Startup systemd: `pm2 startup` (seguir instruções), depois `pm2 save`.
+- Arquivo de ambiente (runtime): `/etc/node-backend.env` (fonte única carregada pela aplicação). Testes usam `.env.test`.
+- Não utilizar `.env` locais para execução — sincronize sempre o arquivo do `/etc`.
+- Desenvolvimento/local: `npm run dev` (ou `npm start`), exportando previamente o conteúdo de `/etc/node-backend.env` quando necessário.
+- Produção (daemon `server.sh`):
+  - Operações: `./server.sh start`, `./server.sh stop`, `./server.sh restart`, `./server.sh status`, `./server.sh clear-cache`
+  - Deploy completo: `npm run deploy` (encadeia `scripts/manage.sh` e `server.sh`)
 - Entradas úteis:
   - Saúde do sistema: `/health`, `/health/ready`, `/health/live`, `/health/metrics` (chaves internas exigidas exceto `/live`).
   - Busca: `/search/*` (Sphinx habilitado/rollback ver `services/sphinxHealthCheck.service`).
@@ -152,7 +150,7 @@ Recomendações adicionais de manutenção de documentação
 - Logs: use o logger central (ver `src/middleware/errorHandler.js`).
 
 ## Variáveis de Ambiente Essenciais
-- Arquivo padrão (produção): `/etc/node-backend.env`.
+- Arquivo padrão (runtime): `/etc/node-backend.env` (única fonte para a aplicação em execução).
 - Chaves de acesso: `API_KEY` (prioritária e compatível com o frontend), `INTERNAL_ACCESS_KEY`, `SECURITY_ACCESS_KEY`, `API_ACCESS_KEY` etc.
 - `CORS_ORIGINS` — origens permitidas (fallback definido em `src/app.js`).
 - Banco/Cache/Search: ver `src/config/database`, `src/config/redis`, e serviços Sphinx em `src/services/`.

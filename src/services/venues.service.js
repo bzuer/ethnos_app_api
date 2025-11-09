@@ -166,7 +166,7 @@ class VenuesService {
 
     // Optional subjects
     const subjectsQuery = `
-      SELECT vs.venue_id, vs.subject_id, vs.score, s.term
+      SELECT vs.venue_id, vs.subject_id, vs.score, s.term, s.vocabulary, s.lang
       FROM venue_subjects vs
       JOIN subjects s ON s.id = vs.subject_id
       WHERE vs.venue_id IN (:venueIds)
@@ -251,7 +251,13 @@ class VenuesService {
     const subjectsMap = new Map();
     for (const s of subjectsRows) {
       const list = subjectsMap.get(s.venue_id) || [];
-      list.push({ subject_id: s.subject_id, term: s.term, score: toNullableFloat(s.score) });
+      list.push({
+        subject_id: s.subject_id,
+        term: s.term,
+        score: toNullableFloat(s.score),
+        vocabulary: s.vocabulary || null,
+        lang: s.lang || null
+      });
       subjectsMap.set(s.venue_id, list);
     }
 
@@ -620,7 +626,8 @@ class VenuesService {
           snip: toNullableFloat(row.snip),
           open_access: toNullableBoolean(row.open_access),
           is_in_doaj: toNullableBoolean(row.is_in_doaj)
-        }))
+        })),
+        { includeSubjects: true }
       );
 
       const warnings = Array.isArray(enrichedList.warnings) ? [...enrichedList.warnings] : [];
@@ -876,7 +883,8 @@ class VenuesService {
           publisher_name: row.publisher_name,
           publisher_type: row.publisher_type,
           publisher_country: row.publisher_country,
-        }))
+        })),
+        { includeSubjects: true }
       );
 
       const warnings = Array.isArray(enrichedList.warnings) ? [...enrichedList.warnings] : [];
@@ -987,7 +995,7 @@ class VenuesService {
         },
       }));
 
-      venues = await this._enrichVenues(venues);
+      venues = await this._enrichVenues(venues, { includeSubjects: true });
 
       // Compute total from MariaDB for consistency with statistics
       let totalFromDb = sphinxResponse.total;
@@ -1105,30 +1113,33 @@ class VenuesService {
       })
     ]);
 
-      const enrichedList = await this._enrichVenues(rawVenues.map(row => ({
-      id: row.id,
-      name: row.name,
-      type: row.type,
-      issn: row.issn,
-      eissn: row.eissn,
-      publisher_id: row.publisher_id,
-      impact_factor: toNullableFloat(row.impact_factor),
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      last_validated_at: row.last_validated_at,
-      validation_status: row.validation_status,
-      citescore: toNullableFloat(row.citescore),
-      sjr: toNullableFloat(row.sjr),
-      snip: toNullableFloat(row.snip),
-      open_access: toNullableBoolean(row.open_access),
-      aggregation_type: row.aggregation_type,
-      coverage_start_year: row.coverage_start_year,
-      coverage_end_year: row.coverage_end_year,
-      works_count: toInt(row.works_count, 0),
-      publisher_name: row.publisher_name,
-      publisher_type: row.publisher_type,
-      publisher_country: row.publisher_country,
-    })));
+    const enrichedList = await this._enrichVenues(
+      rawVenues.map(row => ({
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        issn: row.issn,
+        eissn: row.eissn,
+        publisher_id: row.publisher_id,
+        impact_factor: toNullableFloat(row.impact_factor),
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        last_validated_at: row.last_validated_at,
+        validation_status: row.validation_status,
+        citescore: toNullableFloat(row.citescore),
+        sjr: toNullableFloat(row.sjr),
+        snip: toNullableFloat(row.snip),
+        open_access: toNullableBoolean(row.open_access),
+        aggregation_type: row.aggregation_type,
+        coverage_start_year: row.coverage_start_year,
+        coverage_end_year: row.coverage_end_year,
+        works_count: toInt(row.works_count, 0),
+        publisher_name: row.publisher_name,
+        publisher_type: row.publisher_type,
+        publisher_country: row.publisher_country,
+      })),
+      { includeSubjects: true }
+    );
     const venues = enrichedList.map(v => formatVenueListItem(v));
 
     const total = countResult[0].total;

@@ -79,14 +79,23 @@ cmd_deploy() {
   fi
 
   log "Stopping existing server (if running)"
-  if command -v pm2 >/dev/null 2>&1; then
-    pm2 stop ethnos-api || true
-  else
-    "$SERVER_SCRIPT" stop || true
-  fi
+  "$SERVER_SCRIPT" stop || true
 
   log "Clearing caches"
   "$SERVER_SCRIPT" clear-cache || true
+
+  if [ -x "$ROOT_DIR/scripts/clean_ram.sh" ]; then
+    log "Dropping system caches"
+    if command -v sudo >/dev/null 2>&1; then
+      if sudo -n "$ROOT_DIR/scripts/clean_ram.sh"; then
+        :
+      else
+        sudo "$ROOT_DIR/scripts/clean_ram.sh" || "$ROOT_DIR/scripts/clean_ram.sh" || warn "RAM cleanup step failed"
+      fi
+    else
+      "$ROOT_DIR/scripts/clean_ram.sh" || warn "RAM cleanup step failed"
+    fi
+  fi
 
   log "Installing dependencies"
   npm install --no-fund
@@ -101,44 +110,21 @@ cmd_deploy() {
   npm run test
 
   log "Restarting server"
-  if command -v pm2 >/dev/null 2>&1; then
-    pm2 restart ethnos-api --update-env || pm2 start "$ROOT_DIR/ecosystem.config.js" --env production
-    pm2 save || true
-  else
-    "$SERVER_SCRIPT" restart
-  fi
+  "$SERVER_SCRIPT" restart
 
   log "Deploy completed"
 }
 
 cmd_start() {
-  if command -v pm2 >/dev/null 2>&1; then
-    log "Starting via PM2 (production)"
-    pm2 start "$ROOT_DIR/ecosystem.config.js" --env production
-    pm2 save || true
-  else
-    "$SERVER_SCRIPT" start
-  fi
+  "$SERVER_SCRIPT" start
 }
 
 cmd_stop() {
-  if command -v pm2 >/dev/null 2>&1; then
-    log "Stopping via PM2"
-    pm2 stop ethnos-api || true
-    pm2 save || true
-  else
-    "$SERVER_SCRIPT" stop
-  fi
+  "$SERVER_SCRIPT" stop
 }
 
 cmd_restart() {
-  if command -v pm2 >/dev/null 2>&1; then
-    log "Restarting via PM2 (update env)"
-    pm2 restart ethnos-api --update-env || pm2 start "$ROOT_DIR/ecosystem.config.js" --env production
-    pm2 save || true
-  else
-    "$SERVER_SCRIPT" restart
-  fi
+  "$SERVER_SCRIPT" restart
 }
 
 cmd_index() {

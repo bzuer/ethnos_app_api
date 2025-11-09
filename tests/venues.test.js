@@ -31,7 +31,12 @@ describe('Venues API', () => {
       expect(response.body.meta).toHaveProperty('pagination_extras');
       expect(response.body.meta.pagination_extras).toHaveProperty('offset');
       expect(response.body.meta).toHaveProperty('includes');
-      expect(response.body.meta.includes).toHaveProperty('legacy_metrics', false);
+      expect(response.body.meta.includes).toMatchObject({
+        legacy_metrics: false,
+        subjects: true,
+        terms: true,
+        keywords: true
+      });
 
       if (response.body.data.length > 0) {
         const venue = response.body.data[0];
@@ -47,6 +52,12 @@ describe('Venues API', () => {
         expect(venue.identifiers).toHaveProperty('issn');
         expect(venue.identifiers).toHaveProperty('eissn');
         expect(venue.identifiers).toHaveProperty('external');
+        expect(venue).toHaveProperty('subjects');
+        expect(Array.isArray(venue.subjects)).toBe(true);
+        expect(venue).toHaveProperty('terms');
+        expect(Array.isArray(venue.terms)).toBe(true);
+        expect(venue).toHaveProperty('keywords');
+        expect(Array.isArray(venue.keywords)).toBe(true);
         // Metrics object no longer present
         expect(venue.metrics).toBeUndefined();
         expect(venue.legacy_metrics).toBeUndefined();
@@ -175,12 +186,20 @@ describe('Venues API', () => {
       expect(Array.isArray(response.body.data.publication_summary.publication_trend)).toBe(true);
       expect(response.body.data).toHaveProperty('top_subjects');
       expect(Array.isArray(response.body.data.top_subjects)).toBe(true);
+      expect(response.body.data).toHaveProperty('subjects');
+      expect(Array.isArray(response.body.data.subjects)).toBe(true);
+      expect(response.body.data).toHaveProperty('terms');
+      expect(Array.isArray(response.body.data.terms)).toBe(true);
+      expect(response.body.data).toHaveProperty('keywords');
+      expect(Array.isArray(response.body.data.keywords)).toBe(true);
       // Metrics object removed
       expect(response.body.data.metrics).toBeUndefined();
       expect(response.body.data).toHaveProperty('publisher');
       expect(response.body.meta).toHaveProperty('includes');
       expect(response.body.meta.includes).toMatchObject({
         subjects: true,
+        terms: true,
+        keywords: true,
         yearly_stats: false,
         top_authors: false,
         legacy_metrics: false

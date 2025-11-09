@@ -2,14 +2,10 @@
 
 set -e
 
-if [ -f .env ]; then
-    export $(cat .env | grep -v '^#' | xargs)
-fi
-
 API_NAME="ethnos-api"
-API_PORT=1210
 PID_FILE="/tmp/${API_NAME}.pid"
 LOG_FILE="logs/server.log"
+ENV_FILE="/etc/node-backend.env"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -27,6 +23,21 @@ error() {
 warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
+
+load_env() {
+    if [ ! -f "$ENV_FILE" ]; then
+        error "Environment file ${ENV_FILE} not found"
+        exit 1
+    fi
+
+    set -a
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    set +a
+}
+
+load_env
+API_PORT="${PORT:-3000}"
 
 is_running() {
     if [ -f "$PID_FILE" ]; then
@@ -172,12 +183,7 @@ clear_cache() {
         find logs -name "*.gz" -mtime +7 -delete 2>/dev/null || true
         log "Cleaned old compressed log files"
     fi
-    
-    if command -v pm2 &> /dev/null; then
-        log "Clearing PM2 cache..."
-        pm2 flush 2>/dev/null || true
-    fi
-    
+
     local env_cache_dirs=(
         ".env.cache"
         ".env.local.cache"

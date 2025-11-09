@@ -740,6 +740,37 @@ components:
               example: US
         metrics:
           $ref: "#/components/schemas/VenueMetrics"
+        subjects:
+          type: array
+          description: Subjects associated with the venue (list responses limit to top 5
+            by default)
+          items:
+            type: object
+            properties:
+              subject_id:
+                type: integer
+                nullable: true
+                example: 1205
+              term:
+                type: string
+                example: Anthropology
+              score:
+                type: number
+                format: float
+                nullable: true
+                example: 0.92
+        terms:
+          type: array
+          description: Ordered list of subject terms extracted for the venue
+          items:
+            type: string
+            example: Anthropology
+        keywords:
+          type: array
+          description: Deduplicated subject terms normalized for keyword usage
+          items:
+            type: string
+            example: anthropology
     Citation:
       type: object
       properties:

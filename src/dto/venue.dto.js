@@ -156,10 +156,67 @@ const baseVenue = (venue = {}, options = {}) => {
   return base;
 };
 
+const mapSubject = (subject = {}) => ({
+  subject_id: subject?.subject_id ?? null,
+  term: subject?.term || null,
+  score: subject?.score ?? null
+});
+
+const collectSubjectCollections = (subjects = [], options = {}) => {
+  if (!Array.isArray(subjects) || subjects.length === 0) {
+    return { subjects: [], terms: [], keywords: [] };
+  }
+
+  const limit = Number.isInteger(options.limit) ? options.limit : undefined;
+  const trimmed = limit !== undefined ? subjects.slice(0, limit) : subjects.slice();
+
+  const mapped = trimmed
+    .map(mapSubject)
+    .filter((subject) => subject.subject_id !== null || subject.term !== null);
+
+  const terms = mapped
+    .map((subject) => (subject.term || '').trim())
+    .filter((term) => term.length > 0);
+
+  const keywords = [];
+  const seen = new Set();
+  for (const term of terms) {
+    const normalized = term.toLowerCase();
+    if (seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    keywords.push(term);
+  }
+
+  return {
+    subjects: mapped,
+    terms,
+    keywords
+  };
+};
+
 function formatVenueListItem(venue = {}, options = {}) {
-  return baseVenue(venue, {
+  const includeSubjects = options.includeSubjects !== false;
+  const subjectsLimit = Number.isInteger(options.subjectsLimit) ? options.subjectsLimit : 5;
+
+  const result = baseVenue(venue, {
     includeLegacyMetrics: Boolean(options.includeLegacyMetrics)
   });
+
+  if (includeSubjects) {
+    const source = Array.isArray(venue.subjects) && venue.subjects.length
+      ? venue.subjects
+      : Array.isArray(venue.top_subjects)
+        ? venue.top_subjects
+        : [];
+    const collections = collectSubjectCollections(source, { limit: subjectsLimit });
+    result.subjects = collections.subjects;
+    result.terms = collections.terms;
+    result.keywords = collections.keywords;
+  }
+
+  return result;
 }
 
 function formatVenueDetails(venue = {}, options = {}) {
@@ -186,13 +243,16 @@ function formatVenueDetails(venue = {}, options = {}) {
   }
 
   if (options.includeSubjects) {
-    detail.top_subjects = Array.isArray(venue.top_subjects)
-      ? venue.top_subjects.map((subject) => ({
-          subject_id: subject?.subject_id ?? null,
-          term: subject?.term || null,
-          score: subject?.score ?? null
-        }))
-      : [];
+    const source = Array.isArray(venue.subjects) && venue.subjects.length
+      ? venue.subjects
+      : Array.isArray(venue.top_subjects)
+        ? venue.top_subjects
+        : [];
+    const collections = collectSubjectCollections(source);
+    detail.subjects = collections.subjects;
+    detail.terms = collections.terms;
+    detail.keywords = collections.keywords;
+    detail.top_subjects = collections.subjects.slice(0, 10);
   }
 
   if (options.includeTopAuthors) {
