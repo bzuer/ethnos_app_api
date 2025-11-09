@@ -17,6 +17,8 @@ backup/
 
 # Local environment files (keep examples only)
 .env
+.env*
+*.env*
 
 # Database dumps
 database/*.sql
