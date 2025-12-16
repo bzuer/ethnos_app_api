@@ -83,6 +83,7 @@ const formatBibliographyEntry = (entry) => {
     publication_year: entry.publication_year || null,
     language: entry.language || null,
     document_type: entry.document_type || null,
+    open_access: entry.open_access === true || entry.open_access === 1,
     reading_type: entry.reading_type || null,
     week_number: entry.week_number || null,
     notes: entry.notes || null,

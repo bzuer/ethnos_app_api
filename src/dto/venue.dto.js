@@ -45,6 +45,15 @@ const toInteger = (value, fallback = 0) => {
   return Number.isNaN(parsed) ? fallback : parsed;
 };
 
+const toNullableNumber = (value) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
 const cleanPublisher = (rawPublisher = {}) => {
   const publisher = {
     id: coalesce(rawPublisher.id, rawPublisher.publisher_id),
@@ -113,13 +122,59 @@ const buildLegacyMetrics = (venue = {}) => ({
   citescore: venue.citescore ?? null
 });
 
+const buildSummarySnapshot = (venue = {}) => {
+  const summary = venue.summary_snapshot;
+  if (!summary || typeof summary !== 'object') {
+    return null;
+  }
+
+  const hasContent = Object.values(summary).some(
+    (value) => value !== null && value !== undefined && value !== ''
+  );
+
+  if (!hasContent) {
+    return null;
+  }
+
+  return {
+    id: summary.id ?? venue.id ?? null,
+    name: summary.name ?? venue.name ?? null,
+    type: summary.type ?? venue.type ?? null,
+    publisher_name: summary.publisher_name ?? venue.publisher_name ?? venue.publisher?.name ?? null,
+    country_code: summary.country_code ?? venue.country_code ?? venue.publisher_country ?? null,
+    issn: summary.issn ?? venue.issn ?? null,
+    eissn: summary.eissn ?? venue.eissn ?? null,
+    subjects_string: summary.subjects_string ?? null,
+    top_works_string: summary.top_works_string ?? null,
+    works_count: summary.works_count !== undefined && summary.works_count !== null
+      ? toInteger(summary.works_count, null)
+      : null,
+    cited_by_count: summary.cited_by_count !== undefined && summary.cited_by_count !== null
+      ? toInteger(summary.cited_by_count, null)
+      : null,
+    impact_factor: summary.impact_factor ?? null,
+    h_index: summary.h_index !== undefined && summary.h_index !== null
+      ? toInteger(summary.h_index, null)
+      : null,
+    open_access_percentage: summary.open_access_percentage ?? null,
+    last_updated: summary.last_updated ?? null
+  };
+};
+
 const baseVenue = (venue = {}, options = {}) => {
+  const summarySnapshot = buildSummarySnapshot(venue);
   const base = {
     id: venue.id,
     name: venue.name,
     type: venue.type,
     open_access: toBoolean(venue.open_access),
-    works_count: toInteger(venue.works_count ?? venue.metrics?.works_count),
+    works_count: toInteger(
+      coalesce(
+        summarySnapshot?.works_count,
+        venue.works_count,
+        venue.metrics?.works_count
+      )
+    ),
     issn: coalesce(venue.issn, venue.identifiers?.issn),
     eissn: coalesce(venue.eissn, venue.identifiers?.eissn),
     // Keep legacy scopus_source_id while adding explicit scopus_id
@@ -135,10 +190,23 @@ const baseVenue = (venue = {}, options = {}) => {
     country_code: venue.country_code || null,
     is_in_doaj: toBoolean(venue.is_in_doaj),
     is_indexed_in_scopus: toBoolean(venue.is_indexed_in_scopus),
-    cited_by_count: toInteger(venue.cited_by_count, 0),
-    h_index: toInteger(venue.h_index, 0),
+    cited_by_count: toInteger(
+      coalesce(
+        venue.cited_by_count,
+        summarySnapshot?.cited_by_count
+      ),
+      0
+    ),
+    h_index: toInteger(
+      coalesce(
+        venue.h_index,
+        summarySnapshot?.h_index
+      ),
+      0
+    ),
     i10_index: toInteger(venue.i10_index, 0),
     two_year_mean_citedness: venue.two_year_mean_citedness ?? null,
+    open_access_percentage: summarySnapshot?.open_access_percentage ?? toNullableNumber(venue.open_access_percentage),
     identifiers: buildIdentifiers(venue),
     publisher: cleanPublisher({
       id: venue.publisher_id,
@@ -146,7 +214,8 @@ const baseVenue = (venue = {}, options = {}) => {
       type: venue.publisher_type,
       country_code: venue.publisher_country,
       ...(venue.publisher || {})
-    })
+    }),
+    summary_snapshot: summarySnapshot
   };
 
   if (options.includeLegacyMetrics) {
@@ -272,6 +341,7 @@ function formatVenueDetails(venue = {}, options = {}) {
       id: w.id,
       title: w.title,
       subtitle: w.subtitle ?? null,
+      abstract: w.abstract ?? null,
       type: w.type,
       language: w.language ?? null,
       year: toInteger(w.year, null),
@@ -279,6 +349,7 @@ function formatVenueDetails(venue = {}, options = {}) {
       issue: w.issue ?? null,
       pages: w.pages ?? null,
       doi: w.doi ?? null,
+      open_access: toBoolean(w.open_access),
       peer_reviewed: toBoolean(w.peer_reviewed),
       publication_date: w.publication_date ?? null,
       author_count: toInteger(w.author_count, 0),

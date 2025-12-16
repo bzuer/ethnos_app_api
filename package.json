@@ -12,7 +12,12 @@
     "test:coverage": "jest --coverage",
     "test:load": "echo 'Load testing with artillery removed due to security vulnerabilities. Consider using autocannon or wrk for load testing.'",
     "docs:generate": "node scripts/generate-swagger.js",
-    "docs:generate:yaml": "node -e \"try{const fs=require('fs');const yaml=require('yaml');const specs=require('./config/swagger.config');fs.mkdirSync('docs',{recursive:true});fs.writeFileSync('docs/swagger.yaml',yaml.stringify(specs));console.log('Swagger YAML generated at docs/swagger.yaml')}catch(e){console.error('YAML generation failed:',e.message);process.exit(1)}\""
+    "docs:generate:yaml": "node -e \"try{const fs=require('fs');const yaml=require('yaml');const specs=require('./config/swagger.config');fs.mkdirSync('docs',{recursive:true});fs.writeFileSync('docs/swagger.yaml',yaml.stringify(specs));console.log('Swagger YAML generated at docs/swagger.yaml')}catch(e){console.error('YAML generation failed:',e.message);process.exit(1)}\"",
+    "pm2:start": "pm2 start pm2.config.cjs --env production",
+    "pm2:reload": "pm2 reload pm2.config.cjs --env production",
+    "pm2:stop": "pm2 stop ethnos-api && pm2 delete ethnos-api || true",
+    "pm2:status": "pm2 status ethnos-api",
+    "pm2:logs": "pm2 logs ethnos-api"
   },
   "dependencies": {
     "compression": "^1.7.4",
@@ -25,11 +30,14 @@
     "express-validator": "^7.3.0",
     "helmet": "^7.0.0",
     "helmet-csp": "^4.0.0",
+    "inflight": "^1.0.6",
     "joi": "^17.9.2",
+    "lodash.isequal": "^4.5.0",
     "mariadb": "^3.2.0",
     "morgan": "^1.10.0",
     "mysql": "^2.18.1",
     "mysql2": "^3.15.2",
+    "pm2": "^6.0.14",
     "redis": "^4.6.7",
     "sequelize": "^6.37.7",
     "swagger-jsdoc": "^6.2.8",
@@ -43,7 +51,7 @@
     "cross-env": "^7.0.3",
     "jest": "^29.6.2",
     "nodemon": "^3.0.1",
-    "supertest": "^6.3.3"
+    "supertest": "^7.1.4"
   },
   "engines": {
     "node": ">=18.0.0"

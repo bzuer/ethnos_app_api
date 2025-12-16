@@ -368,6 +368,7 @@ class InstructorsService {
         pub.year as publication_year,
         w.language,
         w.work_type as document_type,
+        pub.open_access,
         cb.reading_type,
         (LENGTH(was.author_string) - LENGTH(REPLACE(was.author_string, ';', '')) + 1) as author_count,
         p_first.preferred_name as first_author_name,
@@ -549,6 +550,7 @@ class InstructorsService {
         pub.year,
         w.work_type,
         w.language,
+        pub.open_access,
         vws.signature_text
       FROM v_works_by_signature vws
       JOIN works w ON vws.work_id = w.id
@@ -559,6 +561,9 @@ class InstructorsService {
     `;
 
     const [recentWorks] = await pool.execute(recentWorksQuery, [personId]);
+    recentWorks.forEach(work => {
+      work.open_access = work.open_access === 1 || work.open_access === true;
+    });
 
     const mostUsedAuthorsQuery = `
       SELECT 

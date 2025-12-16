@@ -2,15 +2,94 @@
 
 set -e
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 API_NAME="ethnos-api"
 PID_FILE="/tmp/${API_NAME}.pid"
 LOG_FILE="logs/server.log"
 ENV_FILE="/etc/node-backend.env"
+PM2_APP_NAME="${PM2_APP_NAME:-$API_NAME}"
+PM2_CONFIG="${PM2_CONFIG:-$ROOT_DIR/pm2.config.cjs}"
+PM2_BIN_RESOLVED=""
+USE_PM2_VALUE="${USE_PM2:-1}"
+
+case "$USE_PM2_VALUE" in
+    0|false|FALSE|no|NO|disabled|DISABLED)
+        USE_PM2=0
+        ;;
+    *)
+        USE_PM2=1
+        ;;
+esac
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
+
+resolve_pm2_bin() {
+    if [ -n "$PM2_BIN_RESOLVED" ] && [ -x "$PM2_BIN_RESOLVED" ]; then
+        return 0
+    fi
+
+    if [ -n "${PM2_BIN:-}" ] && [ -x "${PM2_BIN}" ]; then
+        PM2_BIN_RESOLVED="${PM2_BIN}"
+        return 0
+    fi
+
+    if [ -x "$ROOT_DIR/node_modules/.bin/pm2" ]; then
+        PM2_BIN_RESOLVED="$ROOT_DIR/node_modules/.bin/pm2"
+        return 0
+    fi
+
+    if command -v pm2 >/dev/null 2>&1; then
+        PM2_BIN_RESOLVED="$(command -v pm2)"
+        return 0
+    fi
+
+    return 1
+}
+
+pm2_can_control() {
+    if [ "$USE_PM2" -eq 0 ]; then
+        return 1
+    fi
+
+    if resolve_pm2_bin; then
+        return 0
+    fi
+
+    return 1
+}
+
+pm2_can_start() {
+    if ! pm2_can_control; then
+        return 1
+    fi
+
+    if [ ! -f "$PM2_CONFIG" ]; then
+        return 1
+    fi
+
+    return 0
+}
+
+pm2_is_online() {
+    if ! pm2_can_control; then
+        return 1
+    fi
+
+    if "$PM2_BIN_RESOLVED" jlist 2>/dev/null | node -e "const fs=require('fs');const input=fs.readFileSync(0,'utf8')||'';const idx=input.indexOf('[');if(idx===-1){process.exit(1);}let list=[];try{list=JSON.parse(input.slice(idx));}catch(e){process.exit(1);}const name=process.argv[1];process.exit(list.some(app=>app.name===name&&app.pm2_env&&app.pm2_env.status==='online')?0:1);" "$PM2_APP_NAME"; then
+        return 0
+    fi
+
+    return 1
+}
+
+ensure_directories() {
+    mkdir -p logs
+    mkdir -p runtime
+}
 
 log() {
     echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
@@ -40,15 +119,19 @@ load_env
 API_PORT="${PORT:-3000}"
 
 is_running() {
+    if pm2_is_online; then
+        return 0
+    fi
+
     if [ -f "$PID_FILE" ]; then
-        local pid=$(cat "$PID_FILE")
+        local pid
+        pid=$(cat "$PID_FILE")
         if ps -p "$pid" > /dev/null 2>&1; then
             return 0
-        else
-            rm -f "$PID_FILE"
-            return 1
         fi
+        rm -f "$PID_FILE"
     fi
+
     return 1
 }
 
@@ -90,6 +173,13 @@ cleanup_ports() {
 
 kill_all_processes() {
     log "Killing all related processes..."
+    if pm2_is_online; then
+        warning "Stopping PM2 managed process: $PM2_APP_NAME"
+        "$PM2_BIN_RESOLVED" stop "$PM2_APP_NAME" >/dev/null 2>&1 || true
+        "$PM2_BIN_RESOLVED" delete "$PM2_APP_NAME" >/dev/null 2>&1 || true
+    elif pm2_can_control; then
+        "$PM2_BIN_RESOLVED" delete "$PM2_APP_NAME" >/dev/null 2>&1 || true
+    fi
     local patterns=("node.*ethnos" "npm.*start" "node.*app.js" "node.*src/app.js")
     
     for pattern in "${patterns[@]}"; do
@@ -245,9 +335,19 @@ hard_restart() {
 }
 
 start_server() {
-    if is_running; then
-        warning "Server is already running (PID: $(cat $PID_FILE))"
+    if pm2_is_online; then
+        warning "Server is already running under PM2"
         return 1
+    fi
+
+    if [ -f "$PID_FILE" ]; then
+        local pid
+        pid=$(cat "$PID_FILE")
+        if ps -p "$pid" > /dev/null 2>&1; then
+            warning "Server is already running (PID: $pid)"
+            return 1
+        fi
+        rm -f "$PID_FILE"
     fi
 
     log "Starting ethnos.app API server..."
@@ -261,6 +361,7 @@ start_server() {
         exit 1
     fi
 
+    ensure_directories
     cleanup_ports
     log "Checking database connection..."
     # Create temporary MySQL config file
@@ -281,8 +382,28 @@ EOF
     fi
     rm -f "$MYSQL_CONFIG"
 
-    # Create logs directory
-    mkdir -p logs
+    if pm2_can_start; then
+        log "Starting server with PM2 using $PM2_CONFIG"
+        "$PM2_BIN_RESOLVED" start "$PM2_CONFIG" --only "$PM2_APP_NAME" --env production >/dev/null
+        "$PM2_BIN_RESOLVED" save >/dev/null 2>&1 || true
+        sleep 3
+        if pm2_is_online; then
+            log "Server started successfully under PM2"
+            log "Monitor via: $PM2_BIN_RESOLVED status $PM2_APP_NAME"
+            return 0
+        fi
+        error "PM2 failed to start the server"
+        "$PM2_BIN_RESOLVED" logs "$PM2_APP_NAME" --lines 20 --nostream 2>/dev/null || true
+        return 1
+    fi
+
+    if [ "$USE_PM2" -eq 1 ]; then
+        if pm2_can_control; then
+            warning "PM2 configuration missing at $PM2_CONFIG; starting with nohup"
+        else
+            warning "PM2 binary not found; starting with nohup"
+        fi
+    fi
 
     # Start server in background
     nohup npm start > "$LOG_FILE" 2>&1 &
@@ -308,24 +429,41 @@ EOF
 }
 
 stop_server() {
-    if ! is_running; then
-        warning "Server is not running"
-        return 1
+    if pm2_is_online; then
+        log "Stopping PM2 managed server..."
+        "$PM2_BIN_RESOLVED" stop "$PM2_APP_NAME" >/dev/null 2>&1 || true
+        "$PM2_BIN_RESOLVED" delete "$PM2_APP_NAME" >/dev/null 2>&1 || true
+        return 0
     fi
 
-    local pid=$(cat "$PID_FILE")
+    if [ ! -f "$PID_FILE" ]; then
+        warning "Server is not running"
+        return 0
+    fi
+
+    local pid
+    pid=$(cat "$PID_FILE")
+    if ! ps -p "$pid" > /dev/null 2>&1; then
+        warning "No process found for PID $pid; cleaning up PID file"
+        rm -f "$PID_FILE"
+        return 0
+    fi
+
     log "Stopping server (PID: $pid)..."
     
     kill "$pid"
     
     # Wait for graceful shutdown
     local count=0
-    while [ $count -lt 10 ] && is_running; do
+    while [ $count -lt 10 ]; do
+        if ! ps -p "$pid" > /dev/null 2>&1; then
+            break
+        fi
         sleep 1
         ((count++))
     done
     
-    if is_running; then
+    if ps -p "$pid" > /dev/null 2>&1; then
         warning "Forcing server shutdown..."
         kill -9 "$pid"
         sleep 1
@@ -347,26 +485,48 @@ restart_server() {
 }
 
 status_server() {
-    if is_running; then
-        local pid=$(cat "$PID_FILE")
-        log "Server is running (PID: $pid)"
+    if pm2_is_online; then
+        log "Server is running under PM2"
+        "$PM2_BIN_RESOLVED" status "$PM2_APP_NAME"
         
-        # Test API endpoint
         if curl -s "http://localhost:$API_PORT/health" > /dev/null; then
             log "API is responding correctly"
         else
             warning "API is not responding"
         fi
-        
-        # Show memory usage
-        local memory=$(ps -p "$pid" -o rss= | awk '{print $1/1024 " MB"}')
+
+        local memory="unknown"
+        local output
+        if output=$("$PM2_BIN_RESOLVED" jlist 2>/dev/null | node -e "const fs=require('fs');const input=fs.readFileSync(0,'utf8')||'';const idx=input.indexOf('[');if(idx===-1){process.exit(1);}let list;try{list=JSON.parse(input.slice(idx));}catch(e){process.exit(1);}const name=process.argv[1];const app=list.find(item=>item.name===name);if(!app||!app.monit){process.exit(1);}const value=(app.monit.memory/1024/1024).toFixed(1)+' MB';console.log(value);" "$PM2_APP_NAME" 2>/dev/null); then
+            memory="$output"
+        fi
         log "Memory usage: $memory"
-        
         return 0
-    else
-        warning "Server is not running"
-        return 1
     fi
+
+    if [ -f "$PID_FILE" ]; then
+        local pid
+        pid=$(cat "$PID_FILE")
+        if ps -p "$pid" > /dev/null 2>&1; then
+            log "Server is running (PID: $pid)"
+            
+            if curl -s "http://localhost:$API_PORT/health" > /dev/null; then
+                log "API is responding correctly"
+            else
+                warning "API is not responding"
+            fi
+            
+            local memory
+            memory=$(ps -p "$pid" -o rss= | awk '{print $1/1024 " MB"}')
+            log "Memory usage: $memory"
+            
+            return 0
+        fi
+        rm -f "$PID_FILE"
+    fi
+
+    warning "Server is not running"
+    return 1
 }
 
 test_server() {
@@ -420,6 +580,12 @@ test_server() {
 }
 
 show_logs() {
+    if pm2_can_control; then
+        if "$PM2_BIN_RESOLVED" logs "$PM2_APP_NAME" --lines 50 --nostream 2>/dev/null; then
+            return 0
+        fi
+    fi
+
     if [ -f "$LOG_FILE" ]; then
         log "Showing last 50 lines of server logs:"
         tail -50 "$LOG_FILE"

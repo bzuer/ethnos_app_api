@@ -280,6 +280,7 @@ class SubjectsService {
         pub.year as publication_year,
         w.language,
         w.work_type as document_type,
+        pub.open_access,
         CAST(ws.relevance_score AS DOUBLE) as relevance_score,
         ws.assigned_by,
         COUNT(DISTINCT cb.course_id) as used_in_courses
@@ -330,6 +331,9 @@ class SubjectsService {
     for (const w of works) {
       if (w.relevance_score !== undefined) {
         w.relevance_score = parseFloat(w.relevance_score);
+      }
+      if (w.open_access !== undefined) {
+        w.open_access = w.open_access === 1 || w.open_access === true;
       }
     }
 

@@ -104,6 +104,7 @@ class OrganizationsService {
         SELECT DISTINCT
           w.id,
           w.title,
+          w.abstract,
           w.work_type,
           w.language,
           pub.year,
@@ -710,6 +711,7 @@ class OrganizationsService {
           title: work.title,
           type: work.work_type,
           language: work.language,
+          open_access: work.open_access === 1 || work.open_access === true,
           publication: {
             year: work.year,
             doi: work.doi,

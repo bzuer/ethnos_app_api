@@ -1126,6 +1126,12 @@ Notes
               nullable: true,
               example: 789012,
               description: 'SciMag database identifier'
+            },
+            openacess_id: {
+              type: 'string',
+              nullable: true,
+              example: 'OA-123456',
+              description: 'Identifier referencing the open access catalog (files.openacess_id)'
             }
           }
         },

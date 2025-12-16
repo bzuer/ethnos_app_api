@@ -11,7 +11,7 @@ const parseIntSafe = (val, def) => {
 };
 
 const windowMs = parseIntSafe(process.env.RATE_LIMIT_WINDOW_MS, 60000);
-const maxGlobal = parseIntSafe(process.env.RATE_LIMIT_MAX_REQUESTS, 0); // optional overall cap
+const maxGlobal = parseIntSafe(process.env.RATE_LIMIT_MAX_REQUESTS, 0);
 const maxGeneral = parseIntSafe(process.env.RATE_LIMIT_GENERAL, maxGlobal || 600);
 const maxSearch = parseIntSafe(process.env.RATE_LIMIT_SEARCH, maxGeneral);
 const maxMetrics = parseIntSafe(process.env.RATE_LIMIT_METRICS, maxGeneral);
@@ -20,6 +20,10 @@ const maxRelational = parseIntSafe(process.env.RATE_LIMIT_RELATIONAL, maxGeneral
 const delayAfter = parseIntSafe(process.env.SLOW_DOWN_AFTER, 1000);
 const delayMs = parseIntSafe(process.env.SLOW_DOWN_DELAY, 50);
 const maxDelayMs = parseIntSafe(process.env.SLOW_DOWN_MAX, 1000);
+
+const disableRateLimiting = (process.env.RATE_LIMIT_DISABLED || 'true').toLowerCase() !== 'false';
+const noopLimiter = (_req, _res, next) => next();
+const shouldSkipRateLimit = (req) => disableRateLimiting || isLocalRequest(req);
 
 const isLocalRequest = (req) => {
   const ip = req.ip || '';
@@ -49,30 +53,34 @@ const handler = (req, res) => {
   });
 };
 
-const buildLimiter = (max) => rateLimit({
-  windowMs,
-  max,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler,
-});
+const buildLimiter = (max) => {
+  if (disableRateLimiting) return noopLimiter;
+  return rateLimit({
+    windowMs,
+    max,
+    skip: shouldSkipRateLimit,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler,
+  });
+};
 
 const generalLimiter = buildLimiter(maxGeneral);
 const searchLimiter = buildLimiter(maxSearch);
 const relationalLimiter = buildLimiter(maxRelational);
 
-const metricsLimiter = (req, res, next) => {
-  if (isLocalRequest(req)) return next();
-  return buildLimiter(maxMetrics)(req, res, next);
-};
+const metricsLimiter = buildLimiter(maxMetrics);
 
-const speedLimiter = slowDown({
-  windowMs,
-  delayAfter,
-  delayMs: () => delayMs,
-  maxDelayMs,
-  validate: { delayMs: false }
-});
+const speedLimiter = disableRateLimiting
+  ? noopLimiter
+  : slowDown({
+      windowMs,
+      delayAfter,
+      delayMs: () => delayMs,
+      maxDelayMs,
+      validate: { delayMs: false },
+      skip: shouldSkipRateLimit
+    });
 
 const honeypotMiddleware = (req, res, next) => {
   const honeypotPaths = ['/admin', '/user', '/config', '/internal'];
@@ -94,6 +102,7 @@ const honeypotMiddleware = (req, res, next) => {
 
 // Introspection helpers
 const getViolationStats = () => ({
+  disabled: disableRateLimiting,
   windowMs,
   general: maxGeneral,
   search: maxSearch,

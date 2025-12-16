@@ -45,15 +45,20 @@ class BibliographyService {
         c.program_id,
         w.title,
         COALESCE(pm.publication_year, NULL) AS publication_year,
+        COALESCE(pm.open_access, NULL) AS open_access,
         w.language,
         w.work_type AS document_type
       FROM course_bibliography cb
       JOIN courses c ON cb.course_id = c.id
       JOIN works w ON cb.work_id = w.id
       LEFT JOIN (
-        SELECT work_id, MAX(year) AS publication_year
-        FROM publications
-        GROUP BY work_id
+        SELECT p.work_id, p.year AS publication_year, p.open_access
+        FROM publications p
+        INNER JOIN (
+          SELECT work_id, MAX(year) AS max_year
+          FROM publications
+          GROUP BY work_id
+        ) latest ON latest.work_id = p.work_id AND latest.max_year = p.year
       ) pm ON w.id = pm.work_id
       WHERE 1=1
     ` : `
@@ -70,6 +75,7 @@ class BibliographyService {
         c.program_id,
         w.title,
         COALESCE(bm.publication_year, NULL) AS publication_year,
+        COALESCE(bm.open_access, NULL) AS open_access,
         w.language,
         w.work_type AS document_type,
         COALESCE(bm.author_count, 0) AS author_count,
@@ -82,7 +88,8 @@ class BibliographyService {
         SELECT 
           cb.course_id,
           cb.work_id,
-          MAX(pub.year) AS publication_year,
+          latest.publication_year,
+          latest.open_access,
           COALESCE(
             CASE
               WHEN was.author_string IS NULL OR was.author_string = '' THEN 0
@@ -91,13 +98,21 @@ class BibliographyService {
             0
           ) AS author_count,
           TRIM(SUBSTRING_INDEX(COALESCE(was.author_string, ''), ';', 1)) AS first_author_name,
-          GROUP_CONCAT(DISTINCT p.preferred_name ORDER BY p.preferred_name SEPARATOR '; ') AS instructors
+        GROUP_CONCAT(DISTINCT p.preferred_name ORDER BY p.preferred_name SEPARATOR '; ') AS instructors
         FROM course_bibliography cb
-        LEFT JOIN publications pub ON cb.work_id = pub.work_id
+        LEFT JOIN (
+          SELECT p.work_id, p.year AS publication_year, p.open_access
+          FROM publications p
+          INNER JOIN (
+            SELECT work_id, MAX(year) AS max_year
+            FROM publications
+            GROUP BY work_id
+          ) latest_pub ON latest_pub.work_id = p.work_id AND latest_pub.max_year = p.year
+        ) latest ON cb.work_id = latest.work_id
         LEFT JOIN work_author_summary was ON cb.work_id = was.work_id
         LEFT JOIN course_instructors ci ON cb.course_id = ci.course_id
         LEFT JOIN persons p ON ci.canonical_person_id = p.id
-        GROUP BY cb.course_id, cb.work_id, was.author_string
+        GROUP BY cb.course_id, cb.work_id, was.author_string, latest.publication_year, latest.open_access
       ) bm ON cb.course_id = bm.course_id AND cb.work_id = bm.work_id
       WHERE 1=1
     `;
@@ -179,6 +194,9 @@ class BibliographyService {
           item.authors = authors;
         } else {
           item.authors = [];
+        }
+        if (item.open_access !== undefined) {
+          item.open_access = item.open_access === 1 || item.open_access === true;
         }
       });
     }
@@ -307,7 +325,8 @@ class BibliographyService {
         SELECT 
           w.id,
           w.title,
-          MAX(pub.year) as publication_year,
+          latest_pub.publication_year,
+          latest_pub.open_access,
           w.work_type as document_type,
           COUNT(DISTINCT cb.course_id) as used_in_courses,
           COUNT(DISTINCT c.program_id) as used_in_programs,
@@ -315,9 +334,17 @@ class BibliographyService {
         FROM works w
         JOIN course_bibliography cb ON w.id = cb.work_id
         JOIN courses c ON cb.course_id = c.id
-        LEFT JOIN publications pub ON w.id = pub.work_id
+        LEFT JOIN (
+          SELECT p.work_id, p.year AS publication_year, p.open_access
+          FROM publications p
+          INNER JOIN (
+            SELECT work_id, MAX(year) AS max_year
+            FROM publications
+            GROUP BY work_id
+          ) latest ON latest.work_id = p.work_id AND latest.max_year = p.year
+        ) latest_pub ON w.id = latest_pub.work_id
         ${baseWhere}
-        GROUP BY w.id, w.title, w.work_type
+        GROUP BY w.id, w.title, w.work_type, latest_pub.publication_year, latest_pub.open_access
         ORDER BY used_in_courses DESC, used_in_programs DESC
         LIMIT ?
       `, [...params, parseInt(limit)]),
@@ -374,6 +401,9 @@ class BibliographyService {
     for (const work of mostUsedWorks) {
       if (work.reading_types) {
         work.reading_types = work.reading_types.split(',');
+      }
+      if (work.open_access !== undefined) {
+        work.open_access = work.open_access === 1 || work.open_access === true;
       }
     }
 

@@ -380,6 +380,22 @@ describe('DTOs structure', () => {
     expect(listItem).toHaveProperty('pmid', '123456');
     expect(listItem).toHaveProperty('openalex_id', 'W-1');
   });
+
+  test('Work DTO exposes openacess identifier for files', () => {
+    const { formatWorkDetails } = require('../src/dto/work.dto');
+    const work = {
+      id: 99,
+      files: [
+        {
+          file_id: 1,
+          openacess_id: 'OA-999'
+        }
+      ]
+    };
+    const details = formatWorkDetails(work);
+    expect(details.files).toHaveLength(1);
+    expect(details.files[0]).toHaveProperty('openacess_id', 'OA-999');
+  });
 });
 
 describe('Bibliography', () => {

@@ -153,6 +153,7 @@ function formatRecentWorks(items = []) {
     return {
       id: toOptionalInteger(work.id),
       title: normalizeString(work.title),
+      abstract: normalizeString(work.abstract),
       type: normalizeType(work.type || work.work_type),
       language: normalizeString(work.language),
       publication: {
@@ -171,6 +172,7 @@ function formatRecentWorks(items = []) {
             type: normalizeType(work.venue_type)
           }
         : null,
+      open_access: work.open_access === true || work.open_access === 1,
       authors: {
         author_count: toOptionalInteger(work.author_count) ?? authors.length,
         first_author_name: normalizeString(work.first_author_name || authors[0]),

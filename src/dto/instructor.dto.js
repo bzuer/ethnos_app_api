@@ -106,6 +106,7 @@ const formatInstructorBibliography = (entry) => {
     publication_year: entry.publication_year || null,
     language: entry.language || null,
     document_type: entry.document_type || null,
+    open_access: entry.open_access === true || entry.open_access === 1,
     reading_type: entry.reading_type || null,
     author_count: parseInt(entry.author_count) || 0,
     first_author_name: entry.first_author_name || null,

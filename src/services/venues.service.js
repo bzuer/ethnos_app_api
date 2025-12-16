@@ -28,6 +28,49 @@ const toNullableBoolean = (value) => {
   return Number(value) === 1;
 };
 
+const buildSummarySnapshotObject = (row = {}) => {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+
+  const snapshot = {
+    id: row.id ?? null,
+    name: row.name ?? null,
+    type: row.type ?? null,
+    publisher_name: row.publisher_name ?? null,
+    country_code: row.country_code ?? null,
+    issn: row.issn ?? null,
+    eissn: row.eissn ?? null,
+    subjects_string: row.subjects_string ?? null,
+    top_works_string: row.top_works_string ?? null,
+    works_count: row.works_count !== undefined && row.works_count !== null ? toInt(row.works_count, null) : null,
+    cited_by_count: row.cited_by_count !== undefined && row.cited_by_count !== null ? toInt(row.cited_by_count, null) : null,
+    impact_factor: toNullableFloat(row.impact_factor),
+    h_index: row.h_index !== undefined && row.h_index !== null ? toInt(row.h_index, null) : null,
+    open_access_percentage: toNullableFloat(row.open_access_percentage),
+    last_updated: row.last_updated ?? null
+  };
+
+  const hasData = Object.values(snapshot).some((value) => value !== null && value !== undefined);
+  return hasData ? snapshot : null;
+};
+
+const summarySubjectsFallback = (snapshot) => {
+  if (!snapshot || !snapshot.subjects_string || typeof snapshot.subjects_string !== 'string') {
+    return [];
+  }
+
+  return [
+    {
+      subject_id: null,
+      term: snapshot.subjects_string,
+      score: null,
+      vocabulary: null,
+      lang: null
+    }
+  ];
+};
+
 class VenuesService {
   constructor() {
     this._lastEnrichmentWarnings = [];
@@ -123,6 +166,26 @@ class VenuesService {
         NULL AS publisher_country
       FROM venues v
       WHERE v.id IN (:venueIds)`;
+
+    const summaryQuery = `
+      SELECT
+        id,
+        name,
+        type,
+        publisher_name,
+        country_code,
+        issn,
+        eissn,
+        subjects_string,
+        top_works_string,
+        works_count,
+        cited_by_count,
+        impact_factor,
+        h_index,
+        open_access_percentage,
+        last_updated
+      FROM sphinx_venues_summary
+      WHERE id IN (:venueIds)`;
 
     // Prefer view for aggregated venue metrics; fallback to yearly stats aggregation
     const venueRankingQuery = `
@@ -224,13 +287,14 @@ class VenuesService {
       }
     };
 
-    const [baseRows, statsRows, uniqueAuthorsRows, subjectsRows, yearlyRows, topAuthorsRows] = await Promise.all([
+    const [baseRows, statsRows, uniqueAuthorsRows, subjectsRows, yearlyRows, topAuthorsRows, summaryRows] = await Promise.all([
       safeQuery('base', baseQuery, { venueIds: uniqueIds }, fallbackBaseQuery),
       safeQuery('stats', venueRankingQuery, { venueIds: uniqueIds }, statsFallbackQuery),
       options.includeUniqueAuthors ? safeQuery('unique_authors', uniqueAuthorsFromView, { venueIds: uniqueIds }, uniqueAuthorsFallbackQuery) : Promise.resolve([]),
       options.includeSubjects ? safeQuery('subjects', subjectsQuery, { venueIds: uniqueIds }) : Promise.resolve([]),
       options.includeYearly ? safeQuery('yearly_stats', yearlyStatsQuery, { venueIds: uniqueIds }) : Promise.resolve([]),
       options.includeTopAuthors ? safeQuery('top_authors', topAuthorsQuery, { venueIds: uniqueIds }) : Promise.resolve([]),
+      safeQuery('summary_snapshot', summaryQuery, { venueIds: uniqueIds })
     ]);
 
     const map = new Map();
@@ -274,6 +338,14 @@ class VenuesService {
       yearlyMap.set(y.venue_id, list);
     }
 
+    const summaryMap = new Map();
+    for (const row of summaryRows) {
+      const snapshot = buildSummarySnapshotObject(row);
+      if (snapshot) {
+        summaryMap.set(row.id, snapshot);
+      }
+    }
+
     const topAuthorsMap = new Map();
     if (options.includeTopAuthors) {
       const grouped = new Map();
@@ -312,16 +384,20 @@ class VenuesService {
     }
 
     for (const row of baseRows) {
+      const summarySnapshot = summaryMap.get(row.id) || null;
+      const statsRow = statsMap.get(row.id);
+      const fallbackSubjects = summarySnapshot ? summarySubjectsFallback(summarySnapshot) : [];
+
       map.set(row.id, {
         base: {
           id: row.id,
-          name: row.name,
-          type: row.type,
-          issn: row.issn,
-          eissn: row.eissn,
+          name: summarySnapshot?.name ?? row.name,
+          type: summarySnapshot?.type ?? row.type,
+          issn: summarySnapshot?.issn ?? row.issn,
+          eissn: summarySnapshot?.eissn ?? row.eissn,
           scopus_source_id: row.scopus_source_id,
           publisher_id: row.publisher_id,
-          impact_factor: toNullableFloat(row.impact_factor),
+          impact_factor: toNullableFloat(summarySnapshot?.impact_factor ?? row.impact_factor),
           created_at: row.created_at,
           updated_at: row.updated_at,
           last_validated_at: row.last_validated_at,
@@ -333,32 +409,35 @@ class VenuesService {
           aggregation_type: row.aggregation_type,
           coverage_start_year: row.coverage_start_year,
           coverage_end_year: row.coverage_end_year,
-          publisher_name: row.publisher_name,
+          publisher_name: summarySnapshot?.publisher_name ?? row.publisher_name,
           publisher_type: row.publisher_type,
           publisher_country: row.publisher_country,
           homepage_url: row.homepage_url,
-          country_code: row.country_code,
+          country_code: summarySnapshot?.country_code ?? row.country_code,
           is_in_doaj: toNullableBoolean(row.is_in_doaj),
           is_indexed_in_scopus: toNullableBoolean(row.is_indexed_in_scopus),
           two_year_mean_citedness: toNullableFloat(row.two_year_mean_citedness),
+          summary_snapshot: summarySnapshot
         },
         metrics: {
-          publications_count: toInt(statsMap.get(row.id)?.publications_count, 0),
-          works_count: toInt(row.works_count_precomputed, 0),
+          publications_count: toInt(statsRow?.publications_count, 0),
+          works_count: toInt(summarySnapshot?.works_count ?? row.works_count_precomputed, 0),
           unique_authors: toInt(uniqueAuthorsMap.get(row.id), 0),
-          first_publication_year: statsMap.get(row.id)?.first_publication_year || null,
-          latest_publication_year: statsMap.get(row.id)?.latest_publication_year || null,
-          open_access_publications: toInt(statsMap.get(row.id)?.open_access_publications, 0),
-          open_access_percentage: toNullableFloat(statsMap.get(row.id)?.open_access_percentage),
-          cited_by_count: toInt(row.cited_by_count, 0),
-          h_index: toInt(row.h_index, 0),
+          first_publication_year: statsRow?.first_publication_year || null,
+          latest_publication_year: statsRow?.latest_publication_year || null,
+          open_access_publications: toInt(statsRow?.open_access_publications, 0),
+          open_access_percentage: summarySnapshot?.open_access_percentage ?? toNullableFloat(statsRow?.open_access_percentage),
+          cited_by_count: toInt(summarySnapshot?.cited_by_count ?? row.cited_by_count, 0),
+          h_index: toInt(summarySnapshot?.h_index ?? row.h_index, 0),
           i10_index: toInt(row.i10_index, 0),
-          total_citations: toInt(row.cited_by_count, 0),
+          total_citations: toInt(summarySnapshot?.cited_by_count ?? row.cited_by_count, 0),
           avg_citations: null,
           total_downloads: 0,
         },
         external_identifiers: identifiersMap.get(row.id) || [],
-        subjects: subjectsMap.get(row.id) || [],
+        subjects: (subjectsMap.get(row.id) && subjectsMap.get(row.id).length)
+          ? subjectsMap.get(row.id)
+          : fallbackSubjects,
         yearly_stats: yearlyMap.get(row.id) || [],
         top_authors: topAuthorsMap.get(row.id) || [],
       });
@@ -717,42 +796,113 @@ class VenuesService {
     const currentLimit = Math.min(Math.max(1, parseInt(limit, 10) || 20), 100);
     const currentOffset = Math.max(0, parseInt(offset, 10) || 0);
 
-    const filterConditions = [];
+    const filterTemplates = [];
     const filterParams = [];
 
     const normalizedMinId = Number.isInteger(min_id) ? min_id : (Number.isInteger(parseInt(min_id, 10)) ? parseInt(min_id, 10) : undefined);
     if (Number.isInteger(normalizedMinId) && normalizedMinId > 0) {
-      filterConditions.push('v.id >= ?');
+      filterTemplates.push('{{alias}}.id >= ?');
       filterParams.push(normalizedMinId);
     }
 
     if (type) {
-      filterConditions.push('v.type = ?');
+      filterTemplates.push('{{alias}}.type = ?');
       filterParams.push(type);
     }
 
     if (search && search.trim().length > 0) {
       const term = `%${search.trim()}%`;
-      filterConditions.push('(v.name LIKE ? OR v.issn LIKE ? OR v.eissn LIKE ?)');
+      filterTemplates.push('({{alias}}.name LIKE ? OR {{alias}}.issn LIKE ? OR {{alias}}.eissn LIKE ?)');
       filterParams.push(term, term, term);
     }
 
-    const whereClause = filterConditions.length ? `WHERE ${filterConditions.join(' AND ')}` : '';
+    const buildWhereClause = (alias) => {
+      if (!filterTemplates.length) {
+        return '';
+      }
+      return `WHERE ${filterTemplates
+        .map((condition) => condition.replaceAll('{{alias}}', alias))
+        .join(' AND ')}`;
+    };
+    const whereClauseSummary = buildWhereClause('svs');
+    const whereClauseFallback = buildWhereClause('v');
 
-    const sortFields = {
+    const summarySortFields = {
+      name: 'svs.name',
+      type: 'svs.type',
+      impact_factor: 'COALESCE(svs.impact_factor, v.impact_factor)',
+      works_count: 'COALESCE(svs.works_count, v.works_count, 0)',
+      id: 'svs.id'
+    };
+    const fallbackSortFields = {
       name: 'v.name',
       type: 'v.type',
       impact_factor: 'v.impact_factor',
       works_count: 'COALESCE(v.works_count, 0)',
       id: 'v.id'
     };
+    const sortFieldKeys = new Set(['name', 'type', 'impact_factor', 'works_count', 'id']);
 
     const normalizedSortBy = typeof sortBy === 'string' ? sortBy.toLowerCase() : 'id';
-    const finalSortField = sortFields[normalizedSortBy] || sortFields.id;
+    const finalSummarySortField = summarySortFields[normalizedSortBy] || summarySortFields.id;
+    const finalFallbackSortField = fallbackSortFields[normalizedSortBy] || fallbackSortFields.id;
     const normalizedSortOrder = typeof sortOrder === 'string' ? sortOrder.toUpperCase() : 'ASC';
     const finalSortOrder = normalizedSortOrder === 'DESC' ? 'DESC' : 'ASC';
 
-    const venuesQuery = `
+    const summaryVenuesQuery = `
+      SELECT
+        svs.id AS summary_id,
+        svs.name AS summary_name,
+        svs.type AS summary_type,
+        svs.publisher_name AS summary_publisher_name,
+        svs.country_code AS summary_country_code,
+        svs.issn AS summary_issn,
+        svs.eissn AS summary_eissn,
+        svs.subjects_string AS summary_subjects_string,
+        svs.top_works_string AS summary_top_works_string,
+        svs.works_count AS summary_works_count,
+        svs.cited_by_count AS summary_cited_by_count,
+        svs.impact_factor AS summary_impact_factor,
+        svs.h_index AS summary_h_index,
+        svs.open_access_percentage AS summary_open_access_percentage,
+        svs.last_updated AS summary_last_updated,
+        v.id,
+        v.name,
+        v.type,
+        v.issn,
+        v.eissn,
+        v.scopus_id AS scopus_source_id,
+        v.publisher_id,
+        v.impact_factor,
+        v.citescore,
+        v.sjr,
+        v.snip,
+        v.created_at,
+        v.updated_at,
+        v.open_access,
+        v.aggregation_type,
+        v.coverage_start_year,
+        v.coverage_end_year,
+        v.is_indexed_in_scopus,
+        v.\`2yr_mean_citedness\` AS two_year_mean_citedness,
+        v.homepage_url,
+        v.country_code,
+        v.is_in_doaj,
+        v.cited_by_count,
+        v.h_index,
+        COALESCE(v.works_count, 0) AS works_count,
+        pub.name as publisher_name,
+        pub.type as publisher_type,
+        pub.country_code as publisher_country
+      FROM sphinx_venues_summary svs
+      LEFT JOIN venues v ON v.id = svs.id
+      LEFT JOIN organizations pub ON v.publisher_id = pub.id
+      ${whereClauseSummary}
+      ORDER BY ${finalSummarySortField} ${finalSortOrder}, svs.name ASC
+      LIMIT ? OFFSET ?
+    `;
+
+    const fallbackVenuesQuery = `
       SELECT 
         v.id,
         v.name,
@@ -782,8 +932,8 @@ class VenuesService {
         pub.country_code as publisher_country
       FROM venues v
       LEFT JOIN organizations pub ON v.publisher_id = pub.id
-      ${whereClause}
-      ORDER BY ${finalSortField} ${finalSortOrder}, v.name ASC
+      ${whereClauseFallback}
+      ORDER BY ${finalFallbackSortField} ${finalSortOrder}, v.name ASC
       LIMIT ? OFFSET ?
     `;
 
@@ -791,9 +941,45 @@ class VenuesService {
     const countParams = [...filterParams];
 
     try {
-      const executeVenuesQuery = async () => {
+      const fallbackMinimalVenuesQuery = `
+        SELECT 
+          v.id,
+          v.name,
+          v.type,
+          v.issn,
+          v.eissn,
+          NULL AS scopus_source_id,
+          v.publisher_id,
+          v.impact_factor,
+          NULL AS citescore,
+          NULL AS sjr,
+          NULL AS snip,
+          v.created_at,
+          v.updated_at,
+          v.open_access,
+          v.aggregation_type,
+          v.coverage_start_year,
+          v.coverage_end_year,
+          v.is_indexed_in_scopus,
+          v.\`2yr_mean_citedness\` AS two_year_mean_citedness,
+          NULL AS homepage_url,
+          NULL AS country_code,
+          NULL AS is_in_doaj,
+          NULL AS cited_by_count,
+          NULL AS h_index,
+          COALESCE(v.works_count, 0) AS works_count,
+          NULL as publisher_name,
+          NULL as publisher_type,
+          NULL as publisher_country
+        FROM venues v
+        ${whereClauseFallback}
+        ORDER BY ${finalFallbackSortField} ${finalSortOrder}, v.name ASC
+        LIMIT ? OFFSET ?
+      `;
+
+      const executeFallbackVenuesQuery = async () => {
         try {
-          return await sequelize.query(venuesQuery, {
+          return await sequelize.query(fallbackVenuesQuery, {
             replacements: listParams,
             type: sequelize.QueryTypes.SELECT
           });
@@ -801,41 +987,51 @@ class VenuesService {
           const code = err?.original?.code || err?.parent?.code || err?.code;
           if (code === 'ER_BAD_FIELD_ERROR' || code === '42S22') {
             logger.warn('Venues list query falling back to minimal schema', { error: err.message });
-            const fallbackVenuesQuery = `
-              SELECT 
-                v.id,
-                v.name,
-                v.type,
-                v.issn,
-                v.eissn,
-                NULL AS scopus_source_id,
-                v.publisher_id,
-                v.impact_factor,
-                NULL AS citescore,
-                NULL AS sjr,
-                NULL AS snip,
-                v.created_at,
-                v.updated_at,
-                v.open_access,
-                v.aggregation_type,
-                v.coverage_start_year,
-                v.coverage_end_year,
-                v.is_indexed_in_scopus,
-                v.\`2yr_mean_citedness\` AS two_year_mean_citedness,
-                NULL AS homepage_url,
-                NULL AS country_code,
-                NULL AS is_in_doaj,
-                COALESCE(v.works_count, 0) AS works_count,
-                NULL as publisher_name,
-                NULL as publisher_type,
-                NULL as publisher_country
-              FROM venues v
-              ${whereClause}
-              ORDER BY ${finalSortField} ${finalSortOrder}, v.name ASC
-              LIMIT ? OFFSET ?
-            `;
-            return await sequelize.query(fallbackVenuesQuery, {
+            return await sequelize.query(fallbackMinimalVenuesQuery, {
               replacements: listParams,
+              type: sequelize.QueryTypes.SELECT
+            });
+          }
+          throw err;
+        }
+      };
+      const executeVenuesQuery = async () => {
+        try {
+          const rows = await sequelize.query(summaryVenuesQuery, {
+            replacements: listParams,
+            type: sequelize.QueryTypes.SELECT
+          });
+          return rows;
+        } catch (err) {
+          const code = err?.original?.code || err?.parent?.code || err?.code;
+          if (code === 'ER_NO_SUCH_TABLE' || code === '42S02') {
+            logger.warn('Venues summary table not available, falling back to base venues data', { error: err.message });
+            return executeFallbackVenuesQuery();
+          }
+          throw err;
+        }
+      };
+
+      const executeCountQuery = async () => {
+        try {
+          return await sequelize.query(`
+            SELECT COUNT(*) as total
+            FROM sphinx_venues_summary svs
+            ${whereClauseSummary}
+          `, {
+            replacements: countParams,
+            type: sequelize.QueryTypes.SELECT
+          });
+        } catch (err) {
+          const code = err?.original?.code || err?.parent?.code || err?.code;
+          if (code === 'ER_NO_SUCH_TABLE' || code === '42S02') {
+            logger.warn('Venues summary count fallback triggered', { error: err.message });
+            return sequelize.query(`
+              SELECT COUNT(*) as total 
+              FROM venues v
+              ${whereClauseFallback}
+            `, {
+              replacements: countParams,
               type: sequelize.QueryTypes.SELECT
             });
           }
@@ -845,26 +1041,23 @@ class VenuesService {
 
       const [rawVenues, countResult] = await Promise.all([
         executeVenuesQuery(),
-        sequelize.query(`
-          SELECT COUNT(*) as total 
-          FROM venues v
-          ${whereClause}
-        `, {
-          replacements: countParams,
-          type: sequelize.QueryTypes.SELECT
-        })
+        executeCountQuery()
       ]);
 
       const enrichedList = await this._enrichVenues(
         rawVenues.map((row) => ({
-          id: row.id,
-          name: row.name,
-          type: row.type,
-          issn: row.issn,
-          eissn: row.eissn,
+          id: row.summary_id ?? row.id,
+          name: row.summary_name ?? row.name,
+          type: row.summary_type ?? row.type,
+          issn: row.summary_issn ?? row.issn,
+          eissn: row.summary_eissn ?? row.eissn,
           scopus_source_id: row.scopus_source_id,
           publisher_id: row.publisher_id,
-          impact_factor: toNullableFloat(row.impact_factor),
+          impact_factor: toNullableFloat(
+            row.summary_impact_factor !== undefined && row.summary_impact_factor !== null
+              ? row.summary_impact_factor
+              : row.impact_factor
+          ),
           citescore: toNullableFloat(row.citescore),
           sjr: toNullableFloat(row.sjr),
           snip: toNullableFloat(row.snip),
@@ -875,14 +1068,33 @@ class VenuesService {
           coverage_start_year: row.coverage_start_year,
           coverage_end_year: row.coverage_end_year,
           homepage_url: row.homepage_url,
-          country_code: row.country_code,
+          country_code: row.summary_country_code ?? row.country_code,
           is_in_doaj: toNullableBoolean(row.is_in_doaj),
           is_indexed_in_scopus: toNullableBoolean(row.is_indexed_in_scopus),
           two_year_mean_citedness: toNullableFloat(row.two_year_mean_citedness),
-          works_count: toInt(row.works_count, 0),
-          publisher_name: row.publisher_name,
+          works_count: toInt(row.summary_works_count ?? row.works_count, 0),
+          cited_by_count: toInt(row.summary_cited_by_count ?? row.cited_by_count, 0),
+          h_index: toInt(row.summary_h_index ?? row.h_index, 0),
+          publisher_name: row.summary_publisher_name ?? row.publisher_name,
           publisher_type: row.publisher_type,
-          publisher_country: row.publisher_country,
+          publisher_country: row.summary_country_code ?? row.publisher_country,
+          summary_snapshot: row.summary_id !== undefined ? {
+            id: row.summary_id ?? row.id ?? null,
+            name: row.summary_name ?? row.name ?? null,
+            type: row.summary_type ?? row.type ?? null,
+            publisher_name: row.summary_publisher_name ?? null,
+            country_code: row.summary_country_code ?? null,
+            issn: row.summary_issn ?? null,
+            eissn: row.summary_eissn ?? null,
+            subjects_string: row.summary_subjects_string ?? null,
+            top_works_string: row.summary_top_works_string ?? null,
+            works_count: row.summary_works_count ?? null,
+            cited_by_count: row.summary_cited_by_count ?? null,
+            impact_factor: row.summary_impact_factor ?? null,
+            h_index: row.summary_h_index ?? null,
+            open_access_percentage: row.summary_open_access_percentage ?? null,
+            last_updated: row.summary_last_updated ?? null
+          } : null
         })),
         { includeSubjects: true }
       );
@@ -898,7 +1110,7 @@ class VenuesService {
       const meta = {
         source: 'mariadb',
         sort: {
-          by: Object.prototype.hasOwnProperty.call(sortFields, normalizedSortBy) ? normalizedSortBy : 'id',
+          by: sortFieldKeys.has(normalizedSortBy) ? normalizedSortBy : 'id',
           order: finalSortOrder
         }
       };
@@ -1200,6 +1412,7 @@ class VenuesService {
               w.id,
               w.title,
               w.subtitle,
+              w.abstract,
               w.work_type,
               w.language,
               p.year,
@@ -1207,6 +1420,7 @@ class VenuesService {
               p.issue,
               p.pages,
               p.doi,
+              p.open_access,
               p.peer_reviewed,
               p.publication_date
             FROM publications p
@@ -1253,6 +1467,7 @@ class VenuesService {
             id: w.id,
             title: w.title,
             subtitle: w.subtitle,
+            abstract: w.abstract || null,
             type: w.work_type,
             language: w.language,
             year: w.year,
@@ -1260,6 +1475,7 @@ class VenuesService {
             issue: w.issue,
             pages: w.pages,
             doi: w.doi,
+            open_access: w.open_access === 1 || w.open_access === true,
             peer_reviewed: Boolean(w.peer_reviewed),
             publication_date: w.publication_date,
             author_count: (authorsByWork[w.id] || []).length,
@@ -1330,6 +1546,7 @@ class VenuesService {
           w.id,
           w.title,
           w.subtitle,
+          w.abstract,
           w.work_type,
           w.language,
           p.year,
@@ -1337,6 +1554,7 @@ class VenuesService {
           p.issue,
           p.pages,
           p.doi,
+          p.open_access,
           p.peer_reviewed,
           p.publication_date
         FROM works w
@@ -1416,6 +1634,7 @@ class VenuesService {
           id: work.id,
           title: work.title,
           subtitle: work.subtitle,
+          abstract: work.abstract || null,
           type: work.work_type,
           language: work.language,
           year: work.year,
@@ -1423,6 +1642,7 @@ class VenuesService {
           issue: work.issue,
           pages: work.pages,
           doi: work.doi,
+          open_access: work.open_access === 1 || work.open_access === true,
           peer_reviewed: Boolean(work.peer_reviewed),
           publication_date: work.publication_date,
           author_count: authors.length,

@@ -173,8 +173,10 @@ Recomendações adicionais de manutenção de documentação
 
 ## Notas de Robustez (Venues)
 - Detalhes de venue (`GET /venues/{id}`): reforçamos o fallback do enriquecimento para evitar 404 falsos quando tabelas opcionais não existem no ambiente (ex.: `organizations`, `venue_subjects`, `venue_yearly_stats`). O fallback agora consulta apenas a tabela `venues` quando necessário, removendo joins opcionais.
+- O detalhamento agora consome também `sphinx_venues_summary`: todos os campos do snapshot (inclusive `subjects_string`/`top_works_string`) são expostos em `summary_snapshot`, servindo como fonte primária quando colunas auxiliares ou tabelas opcionais estão ausentes.
 - Listagem e busca (`GET /venues`, `GET /venues/search`): os fallbacks também foram ajustados para não depender de `JOIN organizations` — campos de publisher retornam `null` quando a tabela não está disponível.
 - Ao estender consultas, mantenha o fallback “mínimo” sem `JOIN`s para garantir que a ausência de tabelas opcionais não gere 404 ou 500 para registros existentes.
+- A listagem principal (`GET /venues`) usa agora a tabela `sphinx_venues_summary` como fonte primária. Todos os campos desse snapshot (incluindo `subjects_string`, `top_works_string`, `works_count`, `cited_by_count`, `impact_factor`, `h_index`, `open_access_percentage`, `last_updated`, `publisher_name`, `country_code`, `issn`, `eissn`) são retornados no payload dentro de `summary_snapshot`. O serviço faz fallback transparente para `venues` caso o summary não exista no ambiente.
 
 ## Campos de Métricas e Identificadores em Venues
 - O DTO de venues agora expõe, quando disponíveis na tabela `venues`:
@@ -189,11 +191,13 @@ Recomendações adicionais de manutenção de documentação
 
 ## Notas de Detalhes de Works
 - `GET /works/{id}` é o endpoint de detalhes completo: inclui autores com afiliações, publicação (snapshot mais recente), arquivos, licenças, métricas, assuntos, financiamento, citações e referências.
+- Cada item em `files` expõe hashes e identificadores (`md5`, `sha1`, `sha256`, `crc32`, `libgen_id`, `scimag_id`, `openacess_id`), atributos P2P (`edonkey`, `aich`, `tth`, `btih`, `ipfs_cid`), `best_oa_url` e os metadados de relação (`publication_files`: `role`, `quality`, `access_count`, `last_accessed`).
 - Citações e referências são incluídas no payload e também expostas em endpoints dedicados com paginação: `GET /works/{id}/citations` e `GET /works/{id}/references`.
 - Para performance, títulos/anos/venue/autores utilizados nas listas de citações e referências são hidratados via `sphinx_works_summary` quando disponível.
 - Identificadores (doi, pmid, pmcid, arxiv, wos_id, handle, wikidata_id, openalex_id, mag_id) residem em `publications` e são agregados no campo `identifiers` (arrays) e refletidos nos campos de topo quando disponíveis.
 - Financiamento: dados vêm da tabela `funding` unida a `organizations` (campos: `funder_id`, `funder_name`, `grant_number`, `program_name`, `amount`, `currency`).
 - Afiliações: retornadas por autor em `authors[].affiliation` (normalizadas), derivadas de `authorships.affiliation_id` → `organizations`.
+- Todas as listagens de works (buscas, vitrines e blocos como `recent_works` em persons, venues e organizations) devem incluir os campos `abstract` e `open_access` em cada item, independente da fonte (Sphinx ou fallback MariaDB).
 
 ## Checklist para Revisões por Agentes
 - [ ] Rotas/validadores adicionados/alterados no arquivo correto.

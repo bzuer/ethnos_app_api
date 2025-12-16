@@ -437,6 +437,7 @@ class SignaturesService {
             pub.volume,
             pub.issue,
             pub.pages,
+            pub.open_access,
             a.role,
             a.position,
             a.is_corresponding,
@@ -494,6 +495,7 @@ class SignaturesService {
           type: work.work_type,
           language: work.language,
           doi: work.doi,
+          open_access: work.open_access === 1 || work.open_access === true,
           authorship: {
             role: work.role,
             position: work.position,
@@ -506,7 +508,8 @@ class SignaturesService {
             journal: work.journal,
             volume: work.volume,
             issue: work.issue,
-            pages: work.pages
+            pages: work.pages,
+            open_access: work.open_access === 1 || work.open_access === true
           },
           authors: {
             total_count: work.total_authors || 0,

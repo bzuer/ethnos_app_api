@@ -70,44 +70,46 @@ require_server_index_privilege() {
   fi
 }
 
-cmd_deploy() {
-  log "Starting deploy sequence"
-
+ensure_server_script_ready() {
   if [ ! -x "$SERVER_SCRIPT" ]; then
     err "server.sh not executable or missing"
     exit 1
   fi
+}
 
+run_core_maintenance_steps() {
+  ensure_server_script_ready
   log "Stopping existing server (if running)"
   "$SERVER_SCRIPT" stop || true
-
   log "Clearing caches"
   "$SERVER_SCRIPT" clear-cache || true
-
   if [ -x "$ROOT_DIR/scripts/clean_ram.sh" ]; then
     log "Dropping system caches"
-    if command -v sudo >/dev/null 2>&1; then
-      if sudo -n "$ROOT_DIR/scripts/clean_ram.sh"; then
-        :
-      else
-        sudo "$ROOT_DIR/scripts/clean_ram.sh" || "$ROOT_DIR/scripts/clean_ram.sh" || warn "RAM cleanup step failed"
-      fi
-    else
+    if ! sudo -n "$ROOT_DIR/scripts/clean_ram.sh" 2>/dev/null; then
       "$ROOT_DIR/scripts/clean_ram.sh" || warn "RAM cleanup step failed"
     fi
   fi
-
   log "Installing dependencies"
   npm install --no-fund
-
   log "Generating documentation cache"
   npm run docs:generate >/dev/null 2>&1 || warn "Swagger generation failed; continuing"
+
+}
+
+run_full_test_suite() {
+  log "Running full endpoint test suite"
+  npm run test
+}
+
+cmd_deploy() {
+  log "Starting deploy sequence"
+
+  run_core_maintenance_steps
 
   log "Rebuilding Sphinx indexes"
   cmd_index
 
-  log "Running full endpoint test suite"
-  npm run test
+  run_full_test_suite
 
   log "Restarting server"
   "$SERVER_SCRIPT" restart
@@ -124,7 +126,16 @@ cmd_stop() {
 }
 
 cmd_restart() {
+  log "Starting restart sequence (deploy steps without Sphinx indexing)"
+
+  run_core_maintenance_steps
+
+  run_full_test_suite
+
+  log "Restarting server"
   "$SERVER_SCRIPT" restart
+
+  log "Restart sequence completed"
 }
 
 cmd_index() {
@@ -282,7 +293,7 @@ Commands:
   deploy                 Stop, clear caches, reinstall deps, reindex Sphinx, test, and restart
   start                  Start the API server
   stop                   Stop the API server
-  restart                Restart the API server
+  restart                Stop, deep clean, reinstall deps, regen docs, test, and restart (no Sphinx)
   index                  Rebuild Sphinx indexes (requires indexer)
   index:fast             Rebuild only works/persons indexes
   sphinx start|stop|status  Manage searchd lifecycle (use `sphinx start --force` to kill port holders)

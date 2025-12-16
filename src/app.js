@@ -154,7 +154,7 @@ app.get('/', (req, res) => {
       database: '2,625,018 works indexed',
       search_engine: 'Sphinx integrated (18-26ms search performance)',
       cache: 'Redis with 30min TTL',
-      rate_limiting: 'Enabled'
+      rate_limiting: 'Disabled'
     },
     main_categories: {
       search_discovery: {

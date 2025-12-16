@@ -169,6 +169,7 @@ function formatRecentWorks(items = []) {
     language: work.language || null,
     year: toOptionalInteger(work.year),
     doi: work.doi || null,
+    open_access: toOptionalBoolean(work.open_access),
     role: work.role || null,
     position: toOptionalInteger(work.position),
     venue: work.venue

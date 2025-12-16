@@ -348,6 +348,7 @@ class CoursesService {
         p.year as publication_year,
         w.language,
         w.work_type as document_type,
+        p.open_access,
         was.author_string,
         per.preferred_name as first_author_name
       FROM course_bibliography cb

@@ -105,10 +105,12 @@ class PersonsService {
           w.id,
           w.title,
           w.subtitle,
+          w.abstract,
           w.work_type,
           w.language,
           pub.year,
           pub.doi,
+          pub.open_access,
           a.role,
           a.position,
           v.id as venue_id,
@@ -210,10 +212,12 @@ class PersonsService {
           id: work.id,
           title: work.title,
           subtitle: work.subtitle,
+          abstract: work.abstract || null,
           type: work.work_type,
           language: work.language,
           year: work.year,
           doi: work.doi,
+          open_access: work.open_access === 1 || work.open_access === true,
           role: work.role,
           position: work.position,
           venue: work.venue_id
@@ -462,6 +466,7 @@ class PersonsService {
             w.id,
             w.title,
             w.subtitle,
+            w.abstract,
             w.work_type,
             w.language,
             w.created_at,
@@ -473,11 +478,12 @@ class PersonsService {
             v.name as journal,
             pub.volume,
             pub.issue,
-            pub.pages,
-            was.author_string,
-            CASE 
-              WHEN was.author_string IS NOT NULL THEN 
-                (LENGTH(was.author_string) - LENGTH(REPLACE(was.author_string, ';', '')) + 1)
+          pub.pages,
+          was.author_string,
+          pub.open_access,
+          CASE 
+            WHEN was.author_string IS NOT NULL THEN 
+              (LENGTH(was.author_string) - LENGTH(REPLACE(was.author_string, ';', '')) + 1)
               ELSE 0 
             END as total_authors
           FROM authorships a
@@ -526,9 +532,11 @@ class PersonsService {
           id: work.id,
           title: work.title,
           subtitle: work.subtitle,
+          abstract: work.abstract || null,
           type: work.work_type,
           language: work.language,
           doi: work.doi,
+          open_access: work.open_access === 1 || work.open_access === true,
           authorship: {
             role: work.role,
             position: work.position,
@@ -539,7 +547,8 @@ class PersonsService {
             journal: work.journal,
             volume: work.volume,
             issue: work.issue,
-            pages: work.pages
+            pages: work.pages,
+            open_access: work.open_access === 1 || work.open_access === true
           },
           authors: {
             total_count: work.total_authors || 0,

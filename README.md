@@ -101,12 +101,34 @@ npm run dev
 ## Server Management
 
 ```bash
-./server.sh start     # Start server with automatic cleanup
+./server.sh start     # Starts the API (uses PM2 automatically when available)
 ./server.sh restart   # Restart with complete process cleanup
-./server.sh stop      # Stop server gracefully
+./server.sh stop      # Stop server gracefully (idempotent even if offline)
 ./server.sh status    # Check server status and health
 ./server.sh cleanup   # Manual process and port cleanup
 ```
+
+### PM2 supervision (recommended)
+
+Resilient process management is handled by `pm2.config.cjs`, which enforces capped memory usage, configurable clustering, exponential backoff, and fast restarts. Handy commands:
+
+```bash
+npm run pm2:start     # Launches the API under PM2 using pm2.config.cjs
+npm run pm2:reload    # Zero-downtime reload
+npm run pm2:stop      # Stops and removes the PM2 process
+npm run pm2:status    # Shows PM2 status table
+npm run pm2:logs      # Prints the last logs without tailing
+```
+
+To keep the daemon alive after reboots, install the provided systemd unit:
+
+```bash
+sudo cp scripts/systemd/ethnos-api.service /etc/systemd/system/ethnos-api.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now ethnos-api
+```
+
+Adjust the `User`, `Group`, and paths in `scripts/systemd/ethnos-api.service` if your environment differs from `/home/server/api`.
 
 ### Deployment automation
 
@@ -136,7 +158,7 @@ npm run deploy        # Orchestrates stop → cleanup → install → docs → r
 ### Search & Discovery
 Advanced search with Sphinx engine
 - `GET /search/works` - Primary works search with MariaDB fallback
-- `GET /search/sphinx` - Direct Sphinx search (~18–26ms query execution)  
+- `GET /search/sphinx` - Direct Sphinx search (~18–26ms query execution)
 - `GET /search/advanced` - Faceted search with filters
 - `GET /search/autocomplete` - Intelligent search suggestions
 - `GET /search/global` - Global system search
@@ -421,7 +443,7 @@ npm run test:watch                    # Execute tests in watch mode
 
 **Security Features**:
 - Helmet.js security headers with CSP configuration
-- Endpoint-specific rate limiting (defaults: 600 general, 120 search, 300 metrics, 240 relational per minute)
+- Rate limiting disabled (all clients unrestricted; set `RATE_LIMIT_DISABLED=false` to re-enable)
 - Express-validator input validation and sanitization
 - Secure error handling without information leakage
 - Configurable CORS policies
