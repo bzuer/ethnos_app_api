@@ -11,7 +11,6 @@ class CollaborationsService {
     const cacheKey = `collaborators:${personId}:${JSON.stringify(filters)}`;
     
     try {
-      // Verify that the person exists; return null for 404
       const [exists] = await sequelize.query(
         'SELECT 1 FROM persons WHERE id = ? LIMIT 1',
         {
@@ -30,7 +29,6 @@ class CollaborationsService {
         return cached;
       }
 
-      // Prefer view for collaborators
       let collaborators = [];
       try {
         collaborators = await sequelize.query(withTimeout(`
@@ -53,7 +51,6 @@ class CollaborationsService {
           type: sequelize.QueryTypes.SELECT
         });
       } catch (_) {
-        // Fallback simple collaborators query using authorships
         collaborators = await sequelize.query(withTimeout(`
           SELECT 
             p2.id as collaborator_id,
@@ -80,7 +77,6 @@ class CollaborationsService {
         });
       }
 
-      // Sequelize QueryTypes.SELECT retorna array diretamente, não array de arrays
       const collaboratorsList = Array.isArray(collaborators) ? collaborators : [];
 
       if (collaboratorsList.length === 0) {
@@ -135,9 +131,8 @@ class CollaborationsService {
           collaborator_name: collab.collaborator_name,
           collaboration_metrics: {
             total_collaborations: parseInt(collab.collaboration_count),
-            collaboration_span_years: 0, // Simplified - sem dados de ano
-            avg_citations_together: 0, // Simplified
-            // open_access_percentage: 0 // removed  // Simplified
+            collaboration_span_years: 0,
+            avg_citations_together: 0,
           },
           collaboration_strength: this.calculateCollaborationStrength(collab.collaboration_count)
         })),
@@ -160,7 +155,7 @@ class CollaborationsService {
         }
       };
 
-      await cacheService.set(cacheKey, result, 300); // 5 min cache
+      await cacheService.set(cacheKey, result, 300);
       logger.info(`Collaborators for person ${personId} cached: ${collaboratorsList.length} collaborators`);
       
       return result;
@@ -187,7 +182,6 @@ class CollaborationsService {
         return cached;
       }
 
-      // Simplified network - just direct collaborators
       const directCollabs = await sequelize.query(`
         SELECT DISTINCT
           p2.id,
@@ -207,7 +201,6 @@ class CollaborationsService {
 
       const directCollabsList = Array.isArray(directCollabs) ? directCollabs : [];
       
-      // Build nodes
       const nodes = {
         [personId]: {
           id: parseInt(personId),
@@ -226,7 +219,6 @@ class CollaborationsService {
         };
       });
 
-      // Build edges
       const edges = directCollabsList.map(collab => ({
         source: parseInt(personId),
         target: collab.id,
@@ -247,7 +239,7 @@ class CollaborationsService {
         }
       };
 
-      await cacheService.set(cacheKey, result, 600); // 10 min cache
+      await cacheService.set(cacheKey, result, 600);
       logger.info(`Network for person ${personId} cached: ${Object.keys(nodes).length} nodes`);
       
       return result;
@@ -269,7 +261,6 @@ class CollaborationsService {
         return cached;
       }
 
-      // Very simplified top collaborations
       const forceFallback = process.env.COLLAB_FORCE_FALLBACK === 'true' || process.env.NODE_ENV === 'test';
       let topPairs;
 
@@ -348,7 +339,6 @@ class CollaborationsService {
             avg_citations_together: 0,
             first_collaboration_year: pair.first_collaboration_year ? parseInt(pair.first_collaboration_year, 10) : null,
             latest_collaboration_year: pair.latest_collaboration_year ? parseInt(pair.latest_collaboration_year, 10) : null,
-            // open_access_percentage: 0 // removed
           },
           collaboration_strength: this.calculateCollaborationStrength(pair.collaboration_count)
         })),
@@ -359,7 +349,7 @@ class CollaborationsService {
         }
       };
 
-      await cacheService.set(cacheKey, result, 1800); // 30 min cache
+      await cacheService.set(cacheKey, result, 1800);
       logger.info(`Top collaborations cached: ${topPairsList.length} partnerships`);
       
       return result;

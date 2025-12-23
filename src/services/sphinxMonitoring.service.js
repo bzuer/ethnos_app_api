@@ -20,16 +20,14 @@ class SphinxMonitoringService {
         
         this.queryHistory = [];
         this.maxHistorySize = 1000;
-        this.collectInterval = 60000; // 1 minute
+        this.collectInterval = 60000;
         this._intervalHandle = null;
         this._started = false;
     }
 
     async startCollection() {
-        // Initial collection
         await this.collectMetrics();
         
-        // Regular collection
         this._intervalHandle = setInterval(() => {
             this.collectMetrics();
         }, this.collectInterval);
@@ -45,7 +43,6 @@ class SphinxMonitoringService {
         try {
             await this.startCollection();
         } catch (err) {
-            // Keep service alive even if Sphinx is down
             logger.warn('Sphinx monitoring could not start. Will retry on next cycle.', { error: err.message });
             this._started = false;
         }
@@ -55,7 +52,6 @@ class SphinxMonitoringService {
         try {
             const startTime = Date.now();
             
-            // Get Sphinx status
             const status = await sphinxService.getStatus();
             const indexStats = await this.getIndexStats();
             const queryStats = this.calculateQueryStats();
@@ -68,12 +64,10 @@ class SphinxMonitoringService {
                 collection_time_ms: Date.now() - startTime
             };
             
-            // Store in Redis for dashboard access
             if (redis.connected) {
                 await redis.setex('sphinx:metrics', 300, JSON.stringify(this.metrics));
             }
             
-            // Log significant changes
             await this.checkThresholds();
             
             return this.metrics;
@@ -103,7 +97,6 @@ class SphinxMonitoringService {
                 }
             }
             
-            // Get RT index stats
             const rtStats = await this.getRTIndexStats();
             
             return {
@@ -138,11 +131,9 @@ class SphinxMonitoringService {
                     const stats = await fs.stat(file);
                     size += stats.size;
                 } catch (err) {
-                    // File might not exist yet
                 }
             }
             
-            // Try to get document count from Sphinx
             try {
                 await sphinxService.ensureConnection();
                 const result = await new Promise((resolve, reject) => {
@@ -156,7 +147,6 @@ class SphinxMonitoringService {
                 });
                 documents = result;
             } catch (err) {
-                // RT index might be empty or not exist
             }
             
             return { size, documents };
@@ -171,12 +161,10 @@ class SphinxMonitoringService {
         const oneMinuteAgo = now - 60000;
         const oneHourAgo = now - 3600000;
         
-        // Filter recent queries
         const recentQueries = this.queryHistory.filter(q => q.timestamp > oneMinuteAgo);
         const hourlyQueries = this.queryHistory.filter(q => q.timestamp > oneHourAgo);
         
-        // Calculate metrics
-        const qps = recentQueries.length / 60; // queries per second
+        const qps = recentQueries.length / 60;
         const avgResponseTime = recentQueries.length > 0 
             ? recentQueries.reduce((sum, q) => sum + q.responseTime, 0) / recentQueries.length 
             : 0;
@@ -185,7 +173,6 @@ class SphinxMonitoringService {
             ? recentQueries.filter(q => q.error).length / recentQueries.length 
             : 0;
         
-        // Slow query analysis
         const slowQueries = recentQueries.filter(q => q.responseTime > 50);
         const slowQueryRate = recentQueries.length > 0 
             ? slowQueries.length / recentQueries.length 
@@ -203,13 +190,12 @@ class SphinxMonitoringService {
 
     recordQuery(query, responseTime, error = null) {
         this.queryHistory.push({
-            query: query?.substring(0, 100) || 'unknown', // Truncate long queries
+            query: query?.substring(0, 100) || 'unknown',
             responseTime,
             error: Boolean(error),
             timestamp: Date.now()
         });
         
-        // Keep history size manageable
         if (this.queryHistory.length > this.maxHistorySize) {
             this.queryHistory = this.queryHistory.slice(-this.maxHistorySize);
         }
@@ -218,7 +204,6 @@ class SphinxMonitoringService {
     async checkThresholds() {
         const alerts = [];
         
-        // Check various thresholds
         if (this.metrics.queries_per_second > 100) {
             alerts.push({
                 type: 'high_query_volume',
@@ -259,7 +244,6 @@ class SphinxMonitoringService {
             });
         }
         
-        // Log alerts
         for (const alert of alerts) {
             const logLevel = alert.severity === 'critical' ? 'error' : 
                             alert.severity === 'warning' ? 'warn' : 'info';
@@ -278,7 +262,7 @@ class SphinxMonitoringService {
     }
 
     getDetailedMetrics() {
-        const recentQueries = this.queryHistory.slice(-100); // Last 100 queries
+        const recentQueries = this.queryHistory.slice(-100);
         
         return {
             metrics: this.getMetrics(),

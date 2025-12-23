@@ -6,7 +6,6 @@ class AuthHelper {
     this.tokens = {};
   }
 
-  // Create a test user and get auth tokens
   async createTestUser(email = 'test@ethnos.app', password = 'TestPass123@', role = 'user') {
     const userData = { email, password, role };
     
@@ -23,16 +22,13 @@ class AuthHelper {
         };
         return this.tokens[email];
       } else {
-        // User might already exist, try login
         return await this.loginUser(email, password);
       }
     } catch (error) {
-      // If registration fails, try login
       return await this.loginUser(email, password);
     }
   }
 
-  // Login existing user
   async loginUser(email, password) {
     const response = await request(app)
       .post('/api/auth/login')
@@ -50,7 +46,6 @@ class AuthHelper {
     throw new Error(`Login failed: ${response.body.message}`);
   }
 
-  // Get authorization header for requests
   getAuthHeader(email = 'test@ethnos.app') {
     const token = this.tokens[email];
     if (!token) {
@@ -59,7 +54,6 @@ class AuthHelper {
     return `Bearer ${token.accessToken}`;
   }
 
-  // Make authenticated request
   async authenticatedRequest(method, url, email = 'test@ethnos.app') {
     const authHeader = this.getAuthHeader(email);
     
@@ -79,17 +73,14 @@ class AuthHelper {
     }
   }
 
-  // Create admin user for tests that need admin privileges
   async createAdminUser(email = 'admin@test.ethnos.app', password = 'AdminPass123@') {
     return await this.createTestUser(email, password, 'admin');
   }
 
-  // Clear all tokens (useful for cleanup)
   clearTokens() {
     this.tokens = {};
   }
 
-  // Check if user has valid token
   hasValidToken(email = 'test@ethnos.app') {
     return !!this.tokens[email]?.accessToken;
   }

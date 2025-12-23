@@ -427,9 +427,8 @@ router.get('/search/sphinx/compare',
             }
 
             const { q: query } = req.query;
-            const searchService = require('../services/search.service'); // MariaDB search
+            const searchService = require('../services/search.service');
 
-            // Test Sphinx
             let sphinxResults;
             let sphinxTime;
             let sphinxError = null;
@@ -443,7 +442,6 @@ router.get('/search/sphinx/compare',
                 sphinxResults = { results: [] };
             }
 
-            // Test MariaDB (using existing search service)
             const mariadbStart = Date.now();
             let mariadbResults;
             let mariadbTime;

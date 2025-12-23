@@ -3,69 +3,7 @@ const { ERROR_CODES } = require('../utils/responseBuilder');
 
 class CoursesController {
 
-  /**
-   * @swagger
-   * /courses:
-   *   get:
-   *     summary: Get list of courses
-   *     description: Retrieve paginated list of courses with optional filtering
-   *     tags: [Courses]
-   *     parameters:
-   *       - in: query
-   *         name: program_id
-   *         schema:
-   *           type: integer
-   *         description: Filter by program ID
-   *       - in: query
-   *         name: year
-   *         schema:
-   *           type: integer
-   *         description: Filter by academic year
-   *       - in: query
-   *         name: semester
-   *         schema:
-   *           type: string
-   *           enum: ['1', '2', 'SUMMER', 'WINTER', 'YEAR_LONG']
-   *         description: Filter by semester
-   *       - in: query
-   *         name: search
-   *         schema:
-   *           type: string
-   *         description: Search in course name or code
-   *       - in: query
-   *         name: limit
-   *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           maximum: 100
-   *           default: 20
-   *         description: Number of courses to return
-   *       - in: query
-   *         name: offset
-   *         schema:
-   *           type: integer
-   *           minimum: 0
-   *           default: 0
-   *         description: Number of courses to skip
-   *     responses:
-   *       200:
-   *         description: Successfully retrieved courses
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 courses:
-   *                   type: array
-   *                   items:
-   *                     $ref: '#/components/schemas/Course'
-   *                 pagination:
-   *                   $ref: '#/components/schemas/PaginationMeta'
-   *       400:
-   *         $ref: '#/components/responses/BadRequest'
-   *       500:
-   *         $ref: '#/components/responses/InternalError'
-   */
+  
   async getCourses(req, res) {
     try {
       const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 20), 100);
@@ -91,7 +29,7 @@ class CoursesController {
             search: filters.search || null
           },
           performance: {
-            query_time_ms: Date.now() - Date.now() // Will be set by monitoring middleware
+            query_time_ms: Date.now() - Date.now()
           }
         }
       });
@@ -102,68 +40,7 @@ class CoursesController {
     }
   }
 
-  /**
-   * @swagger
-   * /courses/{id}:
-   *   get:
-   *     summary: Get comprehensive course details
-   *     description: Retrieve detailed course information including basic details, bibliography, instructors, and related subjects
-   *     tags: [Courses]
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: integer
-   *         description: Course ID
-   *       - in: query
-   *         name: include_bibliography
-   *         schema:
-   *           type: boolean
-   *           default: true
-   *         description: Include bibliography in response
-   *       - in: query
-   *         name: include_instructors
-   *         schema:
-   *           type: boolean
-   *           default: true
-   *         description: Include instructors in response
-   *       - in: query
-   *         name: include_subjects
-   *         schema:
-   *           type: boolean
-   *           default: true
-   *         description: Include subjects in response
-   *       - in: query
-   *         name: bibliography_limit
-   *         schema:
-   *           type: integer
-   *           default: 50
-   *         description: Limit bibliography items
-   *       - in: query
-   *         name: instructors_limit
-   *         schema:
-   *           type: integer
-   *           default: 20
-   *         description: Limit instructor items
-   *       - in: query
-   *         name: subjects_limit
-   *         schema:
-   *           type: integer
-   *           default: 30
-   *         description: Limit subject items
-   *     responses:
-   *       200:
-   *         description: Successfully retrieved comprehensive course details
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ComprehensiveCourseDetails'
-   *       404:
-   *         $ref: '#/components/responses/NotFound'
-   *       500:
-   *         $ref: '#/components/responses/InternalError'
-   */
+  
   async getCourseById(req, res) {
     try {
       const courseId = req.params.id;
@@ -215,55 +92,7 @@ class CoursesController {
     }
   }
 
-  /**
-   * @swagger
-   * /courses/{id}/instructors:
-   *   get:
-   *     summary: Get course instructors
-   *     description: Retrieve instructors for a specific course
-   *     tags: [Courses]
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: integer
-   *         description: Course ID
-   *       - in: query
-   *         name: role
-   *         schema:
-   *           type: string
-   *           enum: ['PROFESSOR', 'ASSISTANT', 'TA', 'GUEST']
-   *         description: Filter by instructor role
-   *       - in: query
-   *         name: limit
-   *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           maximum: 100
-   *           default: 20
-   *         description: Number of instructors to return
-   *       - in: query
-   *         name: offset
-   *         schema:
-   *           type: integer
-   *           minimum: 0
-   *           default: 0
-   *         description: Number of instructors to skip
-   *     responses:
-   *       200:
-   *         description: Successfully retrieved course instructors
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: array
-   *               items:
-   *                 $ref: '#/components/schemas/CourseInstructor'
-   *       404:
-   *         $ref: '#/components/responses/NotFound'
-   *       500:
-   *         $ref: '#/components/responses/InternalError'
-   */
+  
   async getCourseInstructors(req, res) {
     try {
       const filters = {
@@ -290,60 +119,7 @@ class CoursesController {
     }
   }
 
-  /**
-   * @swagger
-   * /courses/{id}/bibliography:
-   *   get:
-   *     summary: Get course bibliography
-   *     description: Retrieve bibliography/reading list for a specific course
-   *     tags: [Courses]
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: integer
-   *         description: Course ID
-   *       - in: query
-   *         name: reading_type
-   *         schema:
-   *           type: string
-   *           enum: ['REQUIRED', 'RECOMMENDED', 'SUPPLEMENTARY']
-   *         description: Filter by reading type
-   *       - in: query
-   *         name: week_number
-   *         schema:
-   *           type: integer
-   *         description: Filter by week number
-   *       - in: query
-   *         name: limit
-   *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           maximum: 100
-   *           default: 20
-   *         description: Number of bibliography items to return
-   *       - in: query
-   *         name: offset
-   *         schema:
-   *           type: integer
-   *           minimum: 0
-   *           default: 0
-   *         description: Number of bibliography items to skip
-   *     responses:
-   *       200:
-   *         description: Successfully retrieved course bibliography
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: array
-   *               items:
-   *                 $ref: '#/components/schemas/BibliographyEntry'
-   *       404:
-   *         $ref: '#/components/responses/NotFound'
-   *       500:
-   *         $ref: '#/components/responses/InternalError'
-   */
+  
   async getCourseBibliography(req, res) {
     try {
       const filters = {
@@ -372,55 +148,7 @@ class CoursesController {
     }
   }
 
-  /**
-   * @swagger
-   * /courses/{id}/subjects:
-   *   get:
-   *     summary: Get course subjects
-   *     description: Retrieve subjects/topics covered in a specific course based on bibliography
-   *     tags: [Courses]
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: integer
-   *         description: Course ID
-   *       - in: query
-   *         name: vocabulary
-   *         schema:
-   *           type: string
-   *           enum: ['KEYWORD', 'MESH', 'LCSH', 'DDC', 'UDC', 'CUSTOM']
-   *         description: Filter by vocabulary type
-   *       - in: query
-   *         name: limit
-   *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           maximum: 100
-   *           default: 50
-   *         description: Number of subjects to return
-   *       - in: query
-   *         name: offset
-   *         schema:
-   *           type: integer
-   *           minimum: 0
-   *           default: 0
-   *         description: Number of subjects to skip
-   *     responses:
-   *       200:
-   *         description: Successfully retrieved course subjects
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: array
-   *               items:
-   *                 $ref: '#/components/schemas/Subject'
-   *       404:
-   *         $ref: '#/components/responses/NotFound'
-   *       500:
-   *         $ref: '#/components/responses/InternalError'
-   */
+  
   async getCourseSubjects(req, res) {
     try {
       const filters = {
@@ -447,23 +175,7 @@ class CoursesController {
     }
   }
 
-  /**
-   * @swagger
-   * /courses/statistics:
-   *   get:
-   *     summary: Get courses statistics
-   *     description: Retrieve statistical information about courses
-   *     tags: [Courses]
-   *     responses:
-   *       200:
-   *         description: Successfully retrieved courses statistics
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/CoursesStatistics'
-   *       500:
-   *         $ref: '#/components/responses/InternalError'
-   */
+  
   async getCoursesStatistics(req, res) {
     try {
       const statistics = await coursesService.getCoursesStatistics();

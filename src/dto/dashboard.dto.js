@@ -1,11 +1,6 @@
-/**
- * Dashboard DTOs - Standardized data transfer objects for dashboard and real-time analytics
- * Following API v2 conventions: snake_case, consistent structure, chart-ready formats
- */
 
-/**
- * Format dashboard overview response
- */
+
+
 const formatDashboardOverview = (data) => {
   if (!data) return null;
 
@@ -41,9 +36,7 @@ const formatDashboardOverview = (data) => {
   };
 };
 
-/**
- * Format performance chart data for time series visualization
- */
+
 const formatPerformanceChart = (chartData) => {
   if (!Array.isArray(chartData)) return [];
 
@@ -62,9 +55,7 @@ const formatPerformanceChart = (chartData) => {
   })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 };
 
-/**
- * Format search trends data
- */
+
 const formatSearchTrends = (trendsData) => {
   if (!trendsData) return null;
 
@@ -91,9 +82,7 @@ const formatSearchTrends = (trendsData) => {
   };
 };
 
-/**
- * Format system alerts for dashboard
- */
+
 const formatSystemAlerts = (alerts) => {
   if (!Array.isArray(alerts)) return [];
 
@@ -112,9 +101,7 @@ const formatSystemAlerts = (alerts) => {
   });
 };
 
-/**
- * Format metrics summary for dashboard cards
- */
+
 const formatMetricsSummary = (summary) => {
   if (!summary) return null;
 
@@ -140,9 +127,7 @@ const formatMetricsSummary = (summary) => {
   };
 };
 
-/**
- * Format real-time activity feed
- */
+
 const formatActivityFeed = (activities) => {
   if (!Array.isArray(activities)) return [];
 
@@ -161,9 +146,7 @@ const formatActivityFeed = (activities) => {
   })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 };
 
-/**
- * Helper functions
- */
+
 
 const determineHealthStatus = (healthData) => {
   if (!healthData) return 'unknown';
@@ -188,13 +171,11 @@ const determineActivityLevel = (activityData) => {
 const calculatePerformanceScore = (point) => {
   let score = 100;
   
-  // Deduct for slow response times
   const responseTime = parseFloat(point.avg_response_time) || 0;
   if (responseTime > 100) score -= 40;
   else if (responseTime > 50) score -= 20;
   else if (responseTime > 25) score -= 10;
   
-  // Deduct for errors
   const errorRate = parseFloat(point.error_rate) || 0;
   if (errorRate > 0.1) score -= 50;
   else if (errorRate > 0.05) score -= 25;
@@ -238,7 +219,7 @@ const formatRelativeTime = (timestamp) => {
   if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
   if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
   if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-  return time.toISOString().split('T')[0]; // Return date for older items
+  return time.toISOString().split('T')[0];
 };
 
 module.exports = {

@@ -67,7 +67,6 @@ class SearchService {
           ...(facets ? { facets } : {})
         },
         performance: {
-          // Prefer explicit top-level performance; fall back to nested meta.performance
           ...((worksResult && worksResult.performance) || (worksResult && worksResult.meta && worksResult.meta.performance) || {}),
           controller: 'searchWorks'
         }
@@ -173,7 +172,6 @@ class SearchService {
       const [works, persons] = await Promise.all([
         this.searchWorks(trimmedQuery, { page: 1, limit, offset: 0 }),
         this.searchPersons(trimmedQuery, { page: 1, limit, offset: 0 })
-        // organizations search disabled due to performance issues (1192ms)
       ]);
 
       const totalTimeMs = Number(((process.hrtime.bigint() - start) / BigInt(1e6)).toString());
@@ -200,7 +198,7 @@ class SearchService {
           sources: {
             works: works.performance || null,
             persons: persons.performance || null,
-            organizations: null // disabled for performance
+            organizations: null
           }
         }
       };

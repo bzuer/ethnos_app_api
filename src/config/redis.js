@@ -60,7 +60,6 @@ const createRedisClient = async () => {
       try {
         await instance.disconnect();
       } catch (disconnectError) {
-        // ignore
       }
       client = null;
       return null;

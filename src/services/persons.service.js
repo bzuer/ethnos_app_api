@@ -18,7 +18,6 @@ class PersonsService {
         return cached;
       }
 
-      // Optimized: Get person basic data first (fast query)
       const person = await sequelize.query(withTimeout(`
         SELECT p.*, s.signature as name_signature
         FROM persons p
@@ -35,7 +34,6 @@ class PersonsService {
         return null;
       }
 
-      // Prefer view for aggregated metrics and publication window
       let agg = null;
       try {
         const [row] = await sequelize.query(withTimeout(`
@@ -57,7 +55,6 @@ class PersonsService {
         agg = null;
       }
 
-      // Fallback to direct aggregation if view is unavailable
       if (!agg) {
         const [workCounts] = await sequelize.query(withTimeout(`
           SELECT 
@@ -87,7 +84,6 @@ class PersonsService {
         };
       }
 
-      // Merge person data with work statistics
       const personData = {
         ...person[0],
         works_count: parseInt(agg?.total_works, 10) || 0,
@@ -99,7 +95,6 @@ class PersonsService {
         open_access_works: agg?.open_access_papers !== undefined ? parseInt(agg.open_access_papers, 10) : null,
       };
 
-      // Optimized: Limit recent works query for speed
       const recentWorks = await sequelize.query(withTimeout(`
         SELECT 
           w.id,
@@ -128,9 +123,7 @@ class PersonsService {
         type: sequelize.QueryTypes.SELECT
       });
 
-      // Parallel enrichments: primary affiliation, subject expertise, top collaborators
       const [primaryAffiliation, subjectExpertise, topCollaborators] = await Promise.all([
-        // Primary affiliation
         sequelize.query(withTimeout(`
           SELECT a.affiliation_id AS organization_id, o.name, o.type, o.country_code
           FROM authorships a
@@ -148,7 +141,6 @@ class PersonsService {
           } : null)
           .catch(() => null),
 
-        // Subject expertise
         sequelize.query(withTimeout(`
           SELECT ws.subject_id, s.term, s.vocabulary, COUNT(DISTINCT ws.work_id) AS works_count
           FROM authorships a
@@ -162,7 +154,6 @@ class PersonsService {
           .then(([results]) => results)
           .catch(() => []),
 
-        // Top collaborators
         sequelize.query(withTimeout(`
           SELECT a2.person_id, p2.preferred_name, COUNT(DISTINCT a1.work_id) AS shared_works_count
           FROM authorships a1
@@ -234,7 +225,7 @@ class PersonsService {
         updated_at: personData.updated_at
       });
       
-      await cacheService.set(cacheKey, result, 7200); // 2 hours - extended for performance
+      await cacheService.set(cacheKey, result, 7200);
       logger.info(`Person ${id} cached for 2 hours`);
       
       return result;
@@ -262,7 +253,6 @@ class PersonsService {
       const whereConditions = [];
       const replacements = { limit: parseInt(limit), offset: parseInt(offset) };
 
-      // Use Sphinx for search optimization (50-100x faster)
       if (search) {
         return await this.searchPersonsSphinx(search, { limit, offset, verified });
       }
@@ -272,7 +262,6 @@ class PersonsService {
         replacements.verified = verified === 'true' ? 1 : 0;
       }
 
-      // Fast path for signature search: use simplified indexed joins and skip metrics hydration
       if (filters.signature) {
         const signatureQuery = `${filters.signature}%`;
         const [rows, countRows] = await Promise.all([
@@ -329,7 +318,6 @@ class PersonsService {
 
       const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-      // Optimized query: use subqueries instead of complex JOINs and GROUP BY
       let persons = [];
       let countResult = [{ total: 0 }];
       try {
@@ -367,7 +355,6 @@ class PersonsService {
           })
         ]);
       } catch (listErr) {
-        // In test environment, fail soft with empty set to avoid flakiness/timeouts
         if (process.env.NODE_ENV === 'test') {
           logger.warn('Persons listing query failed; returning empty listing (test mode)', { error: listErr.message });
           const empty = {
@@ -559,7 +546,7 @@ class PersonsService {
         pagination: createPagination(page, limit, total)
       };
 
-      await cacheService.set(cacheKey, result, 3600); // 1 hour for relationships
+      await cacheService.set(cacheKey, result, 3600);
       logger.info(`Person ${personId} works cached for 1 hour`);
       
       return result;
@@ -632,7 +619,7 @@ class PersonsService {
         pagination: createPagination(page, limit, total)
       };
 
-      await cacheService.set(cacheKey, result, 3600); // 1 hour for relationships
+      await cacheService.set(cacheKey, result, 3600);
       logger.info(`Person ${personId} signatures cached for 1 hour`);
       
       return result;
@@ -642,10 +629,7 @@ class PersonsService {
     }
   }
 
-  /**
-   * Search persons using Sphinx for high-performance full-text search
-   * Provides 50-100x performance improvement over MariaDB LIKE queries
-   */
+  
   async searchPersonsSphinx(searchTerm, options = {}) {
     const pagination = normalizePagination(options);
     const { page, limit, offset } = pagination;
@@ -656,7 +640,6 @@ class PersonsService {
       const cached = await cacheService.get(cacheKey);
       if (cached) return cached;
 
-      // 1) IDs from Sphinx
       const spx = await sphinxService.searchPersonIds(searchTerm, { limit, offset, verified });
       const ids = Array.isArray(spx?.ids) ? spx.ids : [];
       const total = parseInt(spx?.total || 0, 10) || 0;
@@ -679,7 +662,6 @@ class PersonsService {
         return empty;
       }
 
-      // 2) Hydrate via MariaDB preserving Sphinx order
       const orderField = `FIELD(p.id, ${ids.map(() => '?').join(',')})`;
       const persons = await sequelize.query(`
         SELECT p.id, p.preferred_name, p.given_names, p.family_name, p.orcid, p.is_verified
@@ -711,9 +693,7 @@ class PersonsService {
     }
   }
 
-  /**
-   * Fallback method using MariaDB when Sphinx fails
-   */
+  
   async fallbackPersonsSearch(searchTerm, options = {}) {
     const pagination = normalizePagination(options);
     const { page, limit, offset } = pagination;

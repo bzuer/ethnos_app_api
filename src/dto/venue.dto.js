@@ -177,7 +177,6 @@ const baseVenue = (venue = {}, options = {}) => {
     ),
     issn: coalesce(venue.issn, venue.identifiers?.issn),
     eissn: coalesce(venue.eissn, venue.identifiers?.eissn),
-    // Keep legacy scopus_source_id while adding explicit scopus_id
     scopus_source_id: coalesce(venue.scopus_source_id, venue.identifiers?.scopus_source_id),
     scopus_id: coalesce(venue.scopus_id, venue.scopus_source_id, venue.identifiers?.scopus_source_id),
     wikidata_id: venue.wikidata_id || null,

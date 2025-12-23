@@ -1,12 +1,6 @@
-/**
- * Course DTOs - Standardized data transfer objects for course resources
- * Following API v2 conventions: snake_case, consistent structure, list/detail compatible
- */
 
-/**
- * Format course item for list endpoints
- * Core fields that appear in both list and detail views
- */
+
+
 const formatCourseListItem = (course) => {
   if (!course) return null;
 
@@ -29,10 +23,7 @@ const formatCourseListItem = (course) => {
   };
 };
 
-/**
- * Format course details for detail endpoint
- * Includes all list fields plus additional detail-specific fields
- */
+
 const formatCourseDetails = (course, options = {}) => {
   if (!course) return null;
 
@@ -42,7 +33,6 @@ const formatCourseDetails = (course, options = {}) => {
     ...base,
     source_file: course.source_file || null,
     statistics: course.statistics || null,
-    // Optional enrichments based on query parameters
     ...(options.bibliography && { bibliography: options.bibliography }),
     ...(options.instructors && { instructors: options.instructors }),
     ...(options.subjects && { subjects: options.subjects }),
@@ -52,9 +42,7 @@ const formatCourseDetails = (course, options = {}) => {
   };
 };
 
-/**
- * Format course instructor item
- */
+
 const formatCourseInstructor = (instructor) => {
   if (!instructor) return null;
 
@@ -71,9 +59,7 @@ const formatCourseInstructor = (instructor) => {
   };
 };
 
-/**
- * Format bibliography entry
- */
+
 const formatBibliographyEntry = (entry) => {
   if (!entry) return null;
 
@@ -93,9 +79,7 @@ const formatBibliographyEntry = (entry) => {
   };
 };
 
-/**
- * Format subject entry for course
- */
+
 const formatCourseSubject = (subject) => {
   if (!subject) return null;
 

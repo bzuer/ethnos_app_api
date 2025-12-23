@@ -21,9 +21,7 @@ class SphinxService {
         };
     }
 
-    /**
-     * Search work IDs only using Sphinx (for hydration via MariaDB)
-     */
+    
     async searchWorkIds(query, filters = {}, options = {}) {
         await this.ensureConnection();
 
@@ -102,7 +100,6 @@ class SphinxService {
                     this.connection.query('SHOW META', (metaError, metaRows = []) => {
                         if (metaError) {
                             this._handleQueryError(metaError);
-                            // Still return IDs even if SHOW META fails
                             resolve({
                                 ids: results.map(r => r.id),
                                 total: results.length,
@@ -139,9 +136,7 @@ class SphinxService {
         }
     }
 
-    /**
-     * Search organization IDs only using Sphinx (for hydration via MariaDB)
-     */
+    
     async searchOrganizationIds(searchTerm, options = {}) {
         await this.ensureConnection();
 
@@ -195,9 +190,7 @@ class SphinxService {
         });
     }
 
-    /**
-     * Search person IDs only using Sphinx (for hydration via MariaDB)
-     */
+    
     async searchPersonIds(searchTerm, options = {}) {
         await this.ensureConnection();
 
@@ -241,9 +234,7 @@ class SphinxService {
         });
     }
 
-    /**
-     * Search signature IDs only using Sphinx (for hydration via MariaDB)
-     */
+    
     async searchSignatureIds(searchTerm, options = {}) {
         await this.ensureConnection();
 
@@ -338,11 +329,8 @@ class SphinxService {
         }
     }
 
-    /**
-     * Initialize connection to Sphinx Search via SphinxQL
-     */
+    
     async connect() {
-        // Fast-fail when disabled (e.g., in tests)
         this._ensureEnabled();
         if (this._isTemporarilyDisabled()) {
             const retryInMs = this.disabledUntil - Date.now();
@@ -418,11 +406,8 @@ class SphinxService {
         }
     }
 
-    /**
-     * Ensure connection is active
-     */
+    
     async ensureConnection() {
-        // Fast-fail when disabled (e.g., in tests)
         if (!this.enabled) {
             const error = new Error('Sphinx disabled by configuration');
             error.code = 'SPHINX_UNAVAILABLE';
@@ -512,13 +497,7 @@ class SphinxService {
         return `${field} ${direction}, id ASC`;
     }
 
-    /**
-     * Search works using Sphinx with bibliographic field weighting
-     * @param {string} query - Search query
-     * @param {object} filters - Filters for year, work_type, language, etc.
-     * @param {object} options - Pagination and sorting options
-     * @returns {Promise<object>} Search results with relevance scores
-     */
+    
     async searchWorks(query, filters = {}, options = {}) {
         await this.ensureConnection();
 
@@ -675,11 +654,7 @@ class SphinxService {
         }
     }
 
-    /**
-     * Get all works from Sphinx index without search term
-     * @param {Object} options - Query options
-     * @returns {Promise} Query results
-     */
+    
     async getAllWorks(options = {}) {
         await this.ensureConnection();
 
@@ -756,11 +731,7 @@ class SphinxService {
         }
     }
 
-    /**
-     * Get faceted search results for bibliographic filtering
-     * @param {string} query - Search query
-     * @returns {Promise<object>} Faceted results
-     */
+    
     async getFacets(query) {
         await this.ensureConnection();
         
@@ -772,7 +743,6 @@ class SphinxService {
 
             const matchExpression = `MATCH(${this.connection.escape(trimmedQuery)})`;
             
-            // Get facets using promises for parallel execution
             const yearPromise = new Promise((resolve, reject) => {
                 this.connection.query(`
                     SELECT year, COUNT(*) as count 
@@ -827,7 +797,6 @@ class SphinxService {
                 });
             });
 
-            // Get top venues and authors for this query
             const venuesPromise = new Promise((resolve, reject) => {
                 this.connection.query(`
                     SELECT venue_name, COUNT(*) as count 
@@ -861,7 +830,7 @@ class SphinxService {
                         return;
                     }
                     resolve(results.map(f => ({ 
-                        value: f.author_string.split(';')[0].trim(), // First author
+                        value: f.author_string.split(';')[0].trim(),
                         count: f.count 
                     })));
                 });
@@ -885,10 +854,7 @@ class SphinxService {
         }
     }
 
-    /**
-     * Real-Time indexing: Insert new work into RT index
-     * @param {object} workData - Work data to index
-     */
+    
     async indexWork(workData) {
         await this.ensureConnection();
         
@@ -909,10 +875,10 @@ class SphinxService {
                 workData.venue_name || '',
                 workData.doi || '',
                 workData.year || 0,
-                Math.floor(Date.now() / 1000), // Unix timestamp
+                Math.floor(Date.now() / 1000),
                 workData.work_type || 'ARTICLE',
                 workData.language || 'unknown',
-                0, // open_access removed
+                0,
                 workData.peer_reviewed ? 1 : 0
             ];
             
@@ -946,11 +912,7 @@ class SphinxService {
         }
     }
 
-    /**
-     * Real-Time indexing: Update existing work in RT index
-     * @param {number} workId - Work ID to update
-     * @param {object} updates - Fields to update
-     */
+    
     async updateWork(workId, updates) {
         await this.ensureConnection();
         
@@ -958,7 +920,6 @@ class SphinxService {
             const setParts = [];
             const params = [];
             
-            // Build SET clause dynamically
             Object.entries(updates).forEach(([field, value]) => {
                 setParts.push(`${field} = ?`);
                 params.push(value);
@@ -994,9 +955,7 @@ class SphinxService {
         }
     }
 
-    /**
-     * Get Sphinx status and performance metrics
-     */
+    
     async getStatus() {
         await this.ensureConnection();
         
@@ -1025,7 +984,6 @@ class SphinxService {
 
             const [status, variables] = await Promise.all([statusPromise, variablesPromise]);
             
-            // Convert to object format
             const statusObj = {};
             status.forEach(row => {
                 statusObj[row.Counter || row.Variable_name] = row.Value;
@@ -1064,13 +1022,7 @@ class SphinxService {
         }
     }
 
-    /**
-     * Advanced search with faceted results
-     * @param {string} query - Search query
-     * @param {object} filters - Search filters
-     * @param {object} options - Search options
-     * @returns {Promise<object>} Search results with facets
-     */
+    
     async searchWithFacets(query, filters = {}, options = {}) {
         const [searchResults, facets] = await Promise.all([
             this.searchWorks(query, filters, options),
@@ -1088,9 +1040,7 @@ class SphinxService {
         };
     }
 
-    /**
-     * Close connection
-     */
+    
     async close() {
         if (this.connection) {
             try {
@@ -1103,11 +1053,7 @@ class SphinxService {
         }
     }
 
-    /**
-     * Get all venues from Sphinx venues_metrics_poc index
-     * @param {Object} options - Query options
-     * @returns {Promise} Query results
-     */
+    
     async getAllVenues(options = {}) {
         await this.ensureConnection();
         
@@ -1123,7 +1069,6 @@ class SphinxService {
         const sanitizedOffset = this._sanitizeOffset(offset);
         const MAX_SPHINX_MATCHES = 10000;
         const DEFAULT_MAX_MATCHES = 1000;
-        // Keep Sphinx's max_matches ahead of the requested window to prevent offset errors
         const maxMatches = Math.min(
             MAX_SPHINX_MATCHES,
             Math.max(DEFAULT_MAX_MATCHES, sanitizedOffset + sanitizedLimit)
@@ -1160,7 +1105,6 @@ class SphinxService {
             const startTime = Date.now();
 
             return new Promise((resolve, reject) => {
-                // Execute both queries
                 this.connection.query({ sql, timeout: this.queryTimeoutMs }, params, (error, venueResults = []) => {
                     if (error) {
                         this._handleQueryError(error);

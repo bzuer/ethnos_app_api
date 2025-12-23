@@ -5,11 +5,10 @@ const redis = require('../config/redis');
 class AutocompleteService {
     constructor() {
         this.cachePrefix = 'autocomplete:';
-        this.cacheTTL = 3600; // 1 hour
+        this.cacheTTL = 3600;
         this.minQueryLength = 2;
         this.maxSuggestions = 10;
         
-        // Pre-built suggestion indices
         this.suggestionTypes = {
             titles: 'title_suggestions',
             authors: 'author_suggestions', 
@@ -18,9 +17,7 @@ class AutocompleteService {
         };
     }
 
-    /**
-     * Get autocomplete suggestions for search queries
-     */
+    
     async getSuggestions(query, type = 'all', limit = 10) {
         if (!query || query.length < this.minQueryLength) {
             return { suggestions: [], type: 'none' };
@@ -28,7 +25,6 @@ class AutocompleteService {
 
         const cacheKey = `${this.cachePrefix}${type}:${query.toLowerCase()}`;
         
-        // Check cache first
         if (redis.connected) {
             try {
                 const cached = await redis.get(cacheKey);
@@ -65,7 +61,6 @@ class AutocompleteService {
                 generated_at: new Date().toISOString()
             };
 
-            // Cache the result
             if (redis.connected && suggestions.length > 0) {
                 try {
                     await redis.setex(cacheKey, this.cacheTTL, JSON.stringify(result));
@@ -82,9 +77,7 @@ class AutocompleteService {
         }
     }
 
-    /**
-     * Get title-based suggestions using Sphinx
-     */
+    
     async getTitleSuggestions(query, limit) {
         await sphinxService.ensureConnection();
         
@@ -117,9 +110,7 @@ class AutocompleteService {
         });
     }
 
-    /**
-     * Get author-based suggestions
-     */
+    
     async getAuthorSuggestions(query, limit) {
         await sphinxService.ensureConnection();
         
@@ -142,7 +133,6 @@ class AutocompleteService {
 
                 const suggestions = [];
                 results.forEach(row => {
-                    // Split author string and find matching authors
                     const authors = row.author_string.split(';').map(a => a.trim());
                     const matchingAuthors = authors.filter(author => 
                         author.toLowerCase().includes(query.toLowerCase())
@@ -160,16 +150,13 @@ class AutocompleteService {
                     });
                 });
 
-                // Sort by work count and limit
                 suggestions.sort((a, b) => b.work_count - a.work_count);
                 resolve(suggestions.slice(0, limit));
             });
         });
     }
 
-    /**
-     * Get venue-based suggestions
-     */
+    
     async getVenueSuggestions(query, limit) {
         await sphinxService.ensureConnection();
         
@@ -202,9 +189,7 @@ class AutocompleteService {
         });
     }
 
-    /**
-     * Get mixed suggestions from all types
-     */
+    
     async getAllSuggestions(query, limit) {
         const [titles, authors, venues] = await Promise.all([
             this.getTitleSuggestions(query, Math.ceil(limit / 3)),
@@ -212,7 +197,6 @@ class AutocompleteService {
             this.getVenueSuggestions(query, Math.ceil(limit / 3))
         ]);
 
-        // Mix and prioritize suggestions
         const mixed = [
             ...titles.slice(0, 3),
             ...authors.slice(0, 3),
@@ -225,13 +209,10 @@ class AutocompleteService {
         return mixed.slice(0, limit);
     }
 
-    /**
-     * Get popular search terms for suggestions
-     */
+    
     async getPopularTerms(limit = 20) {
         const cacheKey = `${this.cachePrefix}popular:terms`;
         
-        // Check cache first
         if (redis.connected) {
             try {
                 const cached = await redis.get(cacheKey);
@@ -246,7 +227,6 @@ class AutocompleteService {
         try {
             await sphinxService.ensureConnection();
             
-            // Get most common words from recent searches
             const sql = `
                 SELECT 
                     SUBSTRING_INDEX(SUBSTRING_INDEX(title, ' ', numbers.n), ' ', -1) as term,
@@ -279,7 +259,6 @@ class AutocompleteService {
                         type: 'popular'
                     }));
 
-                    // Cache for 6 hours
                     if (redis.connected && terms.length > 0) {
                         redis.setex(cacheKey, 21600, JSON.stringify(terms));
                     }
@@ -294,9 +273,7 @@ class AutocompleteService {
         }
     }
 
-    /**
-     * Record search query for analytics
-     */
+    
     async recordSearchQuery(query, resultCount = 0) {
         if (!query || query.length < 2) return;
 
@@ -310,7 +287,7 @@ class AutocompleteService {
 
             if (redis.connected) {
                 await redis.lpush(key, JSON.stringify(queryData));
-                await redis.expire(key, 86400 * 30); // Keep for 30 days
+                await redis.expire(key, 86400 * 30);
             }
 
         } catch (error) {
@@ -318,9 +295,7 @@ class AutocompleteService {
         }
     }
 
-    /**
-     * Get search analytics
-     */
+    
     async getSearchAnalytics(days = 7) {
         if (!redis.connected) {
             return { analytics: [], message: 'Redis not available' };
@@ -368,9 +343,7 @@ class AutocompleteService {
             .map(([query, count]) => ({ query, count }));
     }
 
-    /**
-     * Clear autocomplete cache
-     */
+    
     async clearCache() {
         if (!redis.connected) {
             return { cleared: false, message: 'Redis not available' };

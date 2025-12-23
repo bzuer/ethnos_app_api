@@ -1,10 +1,7 @@
 const net = require('net');
 const { logger } = require('../middleware/errorHandler');
 
-/**
- * Custom SphinxQL client using raw TCP connections
- * Compatible with Sphinx 2.2.11 protocol
- */
+
 class SphinxQLClient {
     constructor(options = {}) {
         this.host = options.host || 'localhost';
@@ -13,9 +10,7 @@ class SphinxQLClient {
         this.connected = false;
     }
 
-    /**
-     * Connect to SphinxQL server
-     */
+    
     async connect() {
         return new Promise((resolve, reject) => {
             this.socket = new net.Socket();
@@ -27,7 +22,6 @@ class SphinxQLClient {
                     port: this.port 
                 });
                 
-                // Read initial handshake
                 this.socket.once('data', (data) => {
                     resolve(true);
                 });
@@ -46,16 +40,13 @@ class SphinxQLClient {
         });
     }
 
-    /**
-     * Execute SQL query
-     */
+    
     async query(sql, params = []) {
         if (!this.connected || !this.socket) {
             await this.connect();
         }
 
         return new Promise((resolve, reject) => {
-            // Simple protocol - send SQL + newline
             const query = sql + '\n';
             this.socket.write(query);
 
@@ -63,7 +54,6 @@ class SphinxQLClient {
             const onData = (data) => {
                 buffer = Buffer.concat([buffer, data]);
                 
-                // Look for end of result (simple detection)
                 const content = buffer.toString();
                 if (content.includes('\n\n') || content.includes('rows in set')) {
                     this.socket.removeListener('data', onData);
@@ -79,7 +69,6 @@ class SphinxQLClient {
 
             this.socket.on('data', onData);
 
-            // Timeout after 30 seconds
             setTimeout(() => {
                 this.socket.removeListener('data', onData);
                 reject(new Error('Query timeout'));
@@ -87,9 +76,7 @@ class SphinxQLClient {
         });
     }
 
-    /**
-     * Parse Sphinx results from text format
-     */
+    
     parseResults(content) {
         const lines = content.split('\n').filter(line => line.trim());
         
@@ -97,7 +84,6 @@ class SphinxQLClient {
             return [];
         }
 
-        // Handle SHOW TABLES format
         if (content.includes('Index') && content.includes('Type')) {
             const results = [];
             let dataStarted = false;
@@ -121,7 +107,6 @@ class SphinxQLClient {
             return results;
         }
 
-        // Handle SHOW STATUS format
         if (content.includes('Counter') && content.includes('Value')) {
             const results = [];
             let dataStarted = false;
@@ -145,7 +130,6 @@ class SphinxQLClient {
             return results;
         }
 
-        // Handle search results
         if (content.includes('id') && (content.includes('title') || content.includes('weight'))) {
             const results = [];
             const headerLine = lines.find(line => line.includes('id') && (line.includes('title') || line.includes('weight')));
@@ -155,7 +139,7 @@ class SphinxQLClient {
             const headers = headerLine.split('\t').map(h => h.trim());
             const headerIndex = lines.indexOf(headerLine);
             
-            for (let i = headerIndex + 2; i < lines.length; i++) { // Skip separator line
+            for (let i = headerIndex + 2; i < lines.length; i++) {
                 const line = lines[i];
                 if (!line.trim() || line.includes('rows in set')) break;
                 
@@ -165,7 +149,6 @@ class SphinxQLClient {
                 headers.forEach((header, index) => {
                     if (values[index] !== undefined) {
                         const value = values[index];
-                        // Convert numbers
                         if (!isNaN(value) && value !== '') {
                             row[header] = parseFloat(value);
                         } else {
@@ -182,9 +165,7 @@ class SphinxQLClient {
         return [];
     }
 
-    /**
-     * Close connection
-     */
+    
     async close() {
         if (this.socket) {
             this.socket.destroy();

@@ -62,7 +62,6 @@ class MetricsService {
         type: sequelize.QueryTypes.SELECT
       });
 
-      // Apply DTOs to format annual statistics
       const formattedStats = stats.map(formatAnnualStats);
 
       const result = {
@@ -119,7 +118,6 @@ class MetricsService {
         type: sequelize.QueryTypes.SELECT
       });
 
-      // Apply DTOs to format venue data
       const formattedVenues = venues.map((venue, index) => formatVenueRanking(venue, index + 1));
 
       const result = {
@@ -188,7 +186,6 @@ class MetricsService {
         type: sequelize.QueryTypes.SELECT
       });
 
-      // Apply DTOs to format institution data
       const formattedInstitutions = institutions.map((inst, index) => formatInstitutionProductivity(inst, index + 1));
 
       const result = {
@@ -260,7 +257,6 @@ class MetricsService {
         type: sequelize.QueryTypes.SELECT
       });
 
-      // Apply DTOs to format person data
       const formattedPersons = persons.map((person, index) => formatPersonProduction(person, index + 1));
 
       const result = {
@@ -321,7 +317,6 @@ class MetricsService {
         type: sequelize.QueryTypes.SELECT
       });
 
-      // Apply DTOs to format collaboration data
       const formattedCollaborations = collaborations.map((collab, index) => formatCollaboration(collab, index + 1));
 
       const result = {
@@ -380,7 +375,6 @@ class MetricsService {
         `, { type: sequelize.QueryTypes.SELECT })
       ]);
 
-      // Apply DTOs to format dashboard summary
       const result = formatDashboardSummary(totalCounts[0], recentStats);
 
       await cacheService.set(cacheKey, result, 86400);
@@ -394,7 +388,6 @@ class MetricsService {
   }
 }
 
-// Helper functions
 const calculateGrowthTrend = (values) => {
   if (values.length < 2) return 'insufficient_data';
   

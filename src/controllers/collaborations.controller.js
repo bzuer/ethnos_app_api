@@ -3,76 +3,7 @@ const collaborationsService = require('../services/collaborations.service');
 const { logger } = require('../middleware/errorHandler');
 
 class CollaborationsController {
-  /**
-   * @swagger
-   * /persons/{id}/collaborators:
-   *   get:
-   *     tags: [Collaborations]
-   *     summary: Get collaborators for a person
-   *     description: Retrieve all co-authors and collaboration partners for a specific researcher
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: integer
-   *         description: Person ID
-   *       - in: query
-   *         name: page
-   *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           default: 1
-   *         description: Page number
-   *       - in: query
-   *         name: limit
-   *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           maximum: 100
-   *           default: 20
-   *         description: Items per page
-   *       - in: query
-   *         name: min_collaborations
-   *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           default: 1
-   *         description: Minimum number of collaborations
-   *       - in: query
-   *         name: sort_by
-   *         schema:
-   *           type: string
-   *           enum: [collaborations, recent, strength]
-   *           default: collaborations
-   *         description: Sort criteria
-   *     responses:
-   *       200:
-   *         description: Collaborators retrieved successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 status:
-   *                   type: string
-   *                   example: success
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     person_id:
-   *                       type: integer
-   *                     total_collaborators:
-   *                       type: integer
-   *                     collaborators:
-   *                       type: array
-   *                       items:
-   *                         $ref: '#/components/schemas/Collaboration'
-   *       404:
-   *         $ref: '#/components/responses/NotFound'
-   *       500:
-   *         $ref: '#/components/responses/InternalError'
-   */
+  
   async getPersonCollaborators(req, res) {
     try {
       const errors = validationResult(req);
@@ -124,75 +55,7 @@ class CollaborationsController {
     }
   }
 
-  /**
-   * @swagger
-   * /persons/{id}/network:
-   *   get:
-   *     tags: [Collaborations]
-   *     summary: Get collaboration network for a person
-   *     description: Retrieve network graph of collaboration relationships at specified depth
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: integer
-   *         description: Person ID
-   *       - in: query
-   *         name: depth
-   *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           maximum: 3
-   *           default: 2
-   *         description: Network depth (degrees of separation)
-   *     responses:
-   *       200:
-   *         description: Collaboration network retrieved successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 status:
-   *                   type: string
-   *                   example: success
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     person_id:
-   *                       type: integer
-   *                     network_stats:
-   *                       type: object
-   *                       properties:
-   *                         total_nodes:
-   *                           type: integer
-   *                         total_edges:
-   *                           type: integer
-   *                         depth_levels:
-   *                           type: integer
-   *                     nodes:
-   *                       type: array
-   *                       items:
-   *                         $ref: '#/components/schemas/Person'
-   *                     edges:
-   *                       type: array
-   *                       items:
-   *                         type: object
-   *                         properties:
-   *                           source:
-   *                             type: integer
-   *                           target:
-   *                             type: integer
-   *                           weight:
-   *                             type: integer
-   *                           collaboration_strength:
-   *                             type: string
-   *       404:
-   *         $ref: '#/components/responses/NotFound'
-   *       500:
-   *         $ref: '#/components/responses/InternalError'
-   */
+  
   async getCollaborationNetwork(req, res) {
     try {
       const errors = validationResult(req);
@@ -240,75 +103,7 @@ class CollaborationsController {
     }
   }
 
-  /**
-   * @swagger
-   * /collaborations/top:
-   *   get:
-   *     tags: [Collaborations]
-   *     summary: Get top collaboration pairs
-   *     description: Retrieve the most productive collaboration partnerships across the platform
-   *     parameters:
-   *       - in: query
-   *         name: limit
-   *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           maximum: 100
-   *           default: 50
-   *         description: Number of top collaborations to return
-   *       - in: query
-   *         name: min_collaborations
-   *         schema:
-   *           type: integer
-   *           minimum: 2
-   *           default: 3
-   *         description: Minimum number of collaborative works
-   *       - in: query
-   *         name: year_from
-   *         schema:
-   *           type: integer
-   *           minimum: 1900
-   *           maximum: 2030
-   *         description: Filter from year
-   *       - in: query
-   *         name: year_to
-   *         schema:
-   *           type: integer
-   *           minimum: 1900
-   *           maximum: 2030
-   *         description: Filter to year
-   *     responses:
-   *       200:
-   *         description: Top collaborations retrieved successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 status:
-   *                   type: string
-   *                   example: success
-   *                 data:
-   *                   type: array
-   *                   items:
-   *                     type: object
-   *                     properties:
-   *                       person1_id:
-   *                         type: integer
-   *                       person1_name:
-   *                         type: string
-   *                       person2_id:
-   *                         type: integer
-   *                       person2_name:
-   *                         type: string
-   *                       collaboration_metrics:
-   *                         $ref: '#/components/schemas/Collaboration/properties/collaboration_metrics'
-   *                       collaboration_strength:
-   *                         type: string
-   *                         enum: [very_strong, strong, moderate, weak]
-   *       500:
-   *         $ref: '#/components/responses/InternalError'
-   */
+  
   async getTopCollaborations(req, res) {
     try {
       const errors = validationResult(req);

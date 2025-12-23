@@ -134,7 +134,6 @@ router.get('/performance', async (req, res) => {
         const detailedMetrics = sphinxMonitoring.getDetailedMetrics();
         const recentQueries = detailedMetrics.recent_queries || [];
         
-        // Group queries by time buckets for charting
         const timeBuckets = router.createTimeBuckets(recentQueries, hours);
         const rawChartData = router.createPerformanceChart(timeBuckets);
         const chartData = formatPerformanceChart(rawChartData);
@@ -186,7 +185,6 @@ router.get('/search-trends', async (req, res) => {
             autocompleteService.getPopularTerms(20)
         ]);
 
-        // Process analytics for trending
         const rawTrends = router.analyzeTrends(searchAnalytics, days);
         
         const formattedTrends = formatSearchTrends({
@@ -255,11 +253,9 @@ router.get('/alerts', async (req, res) => {
     }
 });
 
-// Helper methods
 router.checkSystemAlerts = async function(sphinxMetrics, healthStatus) {
     const alerts = [];
     
-    // High error rate alert
     if (sphinxMetrics.error_rate > 0.05) {
         alerts.push({
             type: 'error',
@@ -270,7 +266,6 @@ router.checkSystemAlerts = async function(sphinxMetrics, healthStatus) {
         });
     }
     
-    // Slow response time alert
     if (sphinxMetrics.avg_response_time > 50) {
         alerts.push({
             type: 'performance',
@@ -281,7 +276,6 @@ router.checkSystemAlerts = async function(sphinxMetrics, healthStatus) {
         });
     }
     
-    // High query volume alert
     if (sphinxMetrics.queries_per_second > 100) {
         alerts.push({
             type: 'volume',
@@ -292,7 +286,6 @@ router.checkSystemAlerts = async function(sphinxMetrics, healthStatus) {
         });
     }
     
-    // Large index size warning
     if (sphinxMetrics.index_size_mb > 1000) {
         alerts.push({
             type: 'storage',
@@ -303,7 +296,6 @@ router.checkSystemAlerts = async function(sphinxMetrics, healthStatus) {
         });
     }
     
-    // Rollback active alert
     if (healthStatus.rollbackActive) {
         alerts.push({
             type: 'system',
@@ -320,7 +312,7 @@ router.checkSystemAlerts = async function(sphinxMetrics, healthStatus) {
 router.createTimeBuckets = function(queries, hours) {
     const buckets = {};
     const now = Date.now();
-    const bucketSizeMs = (hours * 60 * 60 * 1000) / 50; // 50 data points
+    const bucketSizeMs = (hours * 60 * 60 * 1000) / 50;
     
     queries.forEach(query => {
         const queryTime = new Date(query.timestamp).getTime();

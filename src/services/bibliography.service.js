@@ -28,7 +28,6 @@ class BibliographyService {
 
     const lightMode = String(light || 'false').toLowerCase() === 'true';
 
-    // Optimized query with intelligent light mode default and simplified JOINs
     const shouldUseLightMode = lightMode || (!course_id && !instructor_id && !search);
     
     let baseQuery = shouldUseLightMode ? `
@@ -164,7 +163,6 @@ class BibliographyService {
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    // Simplified GROUP BY since subqueries already handle aggregation
     const groupedQuery = shouldUseLightMode ? `
       ${baseQuery}
       GROUP BY cb.course_id, cb.work_id, cb.reading_type, cb.week_number, cb.notes,
@@ -203,7 +201,6 @@ class BibliographyService {
 
     let total = 0;
     if (process.env.NODE_ENV === 'test') {
-      // Fast path for tests: avoid expensive COUNT(*) over grouped subquery
       total = offsetValue + bibliography.length;
     } else {
       const countQuery = `SELECT COUNT(*) AS total FROM (${groupedQuery}) bibliography_grouped`;
@@ -313,14 +310,12 @@ class BibliographyService {
       params.push(reading_type);
     }
 
-    // Execute all analysis queries in parallel for better performance
     const [
       [mostUsedWorks],
       [trends], 
       [readingTypeDist],
       [documentTypeDist]
     ] = await Promise.all([
-      // Most used works - simplified query
       pool.execute(`
         SELECT 
           w.id,
@@ -349,7 +344,6 @@ class BibliographyService {
         LIMIT ?
       `, [...params, parseInt(limit)]),
 
-      // Trends by year
       pool.execute(`
         SELECT 
           c.year,
@@ -366,7 +360,6 @@ class BibliographyService {
         LIMIT 10
       `, params),
 
-      // Reading type distribution
       pool.execute(`
         SELECT 
           cb.reading_type,
@@ -380,7 +373,6 @@ class BibliographyService {
         ORDER BY count DESC
       `, params),
 
-      // Document type distribution
       pool.execute(`
         SELECT 
           w.work_type as document_type,
@@ -397,7 +389,6 @@ class BibliographyService {
       `, params)
     ]);
 
-    // Process reading types for most used works
     for (const work of mostUsedWorks) {
       if (work.reading_types) {
         work.reading_types = work.reading_types.split(',');

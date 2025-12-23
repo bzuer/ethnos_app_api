@@ -64,9 +64,7 @@ const createAccessKeyGuard = (options = {}) => {
 
 const requireInternalAccessKey = createAccessKeyGuard({
   envVars: [
-    // Primary shared key used by frontend proxy
     'API_KEY',
-    // Backward/alternative names
     'INTERNAL_ACCESS_KEY',
     'SECURITY_ACCESS_KEY',
     'API_ACCESS_KEY',

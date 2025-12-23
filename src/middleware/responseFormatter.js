@@ -118,12 +118,10 @@ const responseFormatter = (req, res, next) => {
   res.json = (body) => {
     const statusCode = res.statusCode || 200;
 
-    // Allow explicit opt-out for custom handlers
     if (body && body.__skipEnvelope) {
       return originalJson(body.payload);
     }
 
-    // Handle primitives and arrays by wrapping into success envelope
     if (body === null || typeof body !== 'object') {
       if (statusCode >= 400) {
         return res.fail(String(body || 'Request failed'), {
@@ -134,7 +132,6 @@ const responseFormatter = (req, res, next) => {
       return res.success(body, { statusCode });
     }
 
-    // Already standardized payload
     if (body.status && (body.status === 'success' || body.status === 'error' || body.status === 'fail')) {
       if (body.status === 'success') {
         const { data, pagination, meta, ...rest } = body;

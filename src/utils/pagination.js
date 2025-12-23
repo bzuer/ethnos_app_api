@@ -1,14 +1,6 @@
-/**
- * Pagination utilities for consistent API responses
- */
 
-/**
- * Creates standardized pagination object
- * @param {number} page - Current page (1-indexed)
- * @param {number} limit - Items per page
- * @param {number} total - Total number of items
- * @returns {Object} Standardized pagination object
- */
+
+
 function createPagination(page, limit, total) {
   const currentPage = Math.max(1, parseInt(page) || 1);
   const itemsPerPage = Math.max(1, parseInt(limit) || 10);
@@ -27,16 +19,10 @@ function createPagination(page, limit, total) {
   };
 }
 
-/**
- * Normalizes pagination parameters from request query
- * Supports both page/limit and offset/limit patterns for backward compatibility
- * @param {Object} query - Request query object
- * @returns {Object} Normalized pagination parameters
- */
+
 function normalizePagination(query) {
   const limit = Math.min(Math.max(1, parseInt(query.limit) || 10), 100);
   
-  // Support both page and offset parameters
   let page = 1;
   if (query.page) {
     page = Math.max(1, parseInt(query.page) || 1);
@@ -54,24 +40,14 @@ function normalizePagination(query) {
   };
 }
 
-/**
- * Calculates offset from page and limit
- * @param {number} page - Current page (1-indexed)
- * @param {number} limit - Items per page
- * @returns {number} Offset for database queries
- */
+
 function calculateOffset(page, limit) {
   const currentPage = Math.max(1, parseInt(page) || 1);
   const itemsPerPage = Math.max(1, parseInt(limit) || 10);
   return (currentPage - 1) * itemsPerPage;
 }
 
-/**
- * Calculates page from offset and limit
- * @param {number} offset - Database offset
- * @param {number} limit - Items per page
- * @returns {number} Current page (1-indexed)
- */
+
 function calculatePage(offset, limit) {
   const currentOffset = Math.max(0, parseInt(offset) || 0);
   const itemsPerPage = Math.max(1, parseInt(limit) || 10);

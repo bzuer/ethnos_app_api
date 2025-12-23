@@ -1,12 +1,6 @@
-/**
- * Instructor DTOs - Standardized data transfer objects for instructor resources
- * Following API v2 conventions: snake_case, consistent structure, list/detail compatible
- */
 
-/**
- * Format instructor item for list endpoints
- * Core fields that appear in both list and detail views
- */
+
+
 const formatInstructorListItem = (instructor) => {
   if (!instructor) return null;
 
@@ -34,10 +28,7 @@ const formatInstructorListItem = (instructor) => {
   };
 };
 
-/**
- * Format instructor details for detail endpoint
- * Includes all list fields plus additional detail-specific fields
- */
+
 const formatInstructorDetails = (instructor) => {
   if (!instructor) return null;
 
@@ -53,9 +44,7 @@ const formatInstructorDetails = (instructor) => {
   };
 };
 
-/**
- * Format instructor course entry
- */
+
 const formatInstructorCourse = (course) => {
   if (!course) return null;
 
@@ -75,9 +64,7 @@ const formatInstructorCourse = (course) => {
   };
 };
 
-/**
- * Format instructor subject expertise
- */
+
 const formatInstructorSubject = (subject) => {
   if (!subject) return null;
 
@@ -94,9 +81,7 @@ const formatInstructorSubject = (subject) => {
   };
 };
 
-/**
- * Format instructor bibliography entry
- */
+
 const formatInstructorBibliography = (entry) => {
   if (!entry) return null;
 
@@ -117,9 +102,7 @@ const formatInstructorBibliography = (entry) => {
   };
 };
 
-/**
- * Format comprehensive instructor statistics/profile
- */
+
 const formatInstructorStatistics = (stats) => {
   if (!stats || !stats.person) return null;
 

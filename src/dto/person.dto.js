@@ -57,7 +57,6 @@ function ensureArrayOfStrings(value) {
           .filter(Boolean);
       }
     } catch (e) {
-      // fall-through to split handling
     }
     return value
       .split(/[;,]/)
@@ -112,7 +111,6 @@ function formatPersonListItem(row = {}) {
     given_names: row.given_names || null,
     family_name: row.family_name || null,
     name_signature: row.name_signature || null,
-    // Explicit identifier fields
     orcid: row.orcid || row.identifiers?.orcid || null,
     lattes_id: row.lattes_id || row.identifiers?.lattes_id || null,
     scopus_id: row.scopus_id || row.identifiers?.scopus_id || null,
@@ -248,7 +246,6 @@ function formatPersonDetails(person = {}) {
     family_name: person.family_name || null,
     name_variations: ensureArrayOfStrings(person.name_variations || []),
     name_signature: person.name_signature || null,
-    // Explicit identifier fields
     orcid: person.orcid || identifiers.orcid || null,
     lattes_id: person.lattes_id || identifiers.lattes_id || null,
     scopus_id: person.scopus_id || identifiers.scopus_id || null,

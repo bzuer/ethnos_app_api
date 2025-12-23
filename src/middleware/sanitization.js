@@ -2,7 +2,6 @@ const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss');
 const { logger } = require('./errorHandler');
 
-// XSS sanitization middleware
 const xssSanitizer = (req, res, next) => {
   const sanitizeObject = (obj) => {
     if (typeof obj === 'string') {
@@ -24,12 +23,10 @@ const xssSanitizer = (req, res, next) => {
     return obj;
   };
 
-  // Track if any sanitization occurred
   let sanitized = false;
   const originalBody = JSON.stringify(req.body);
   const originalQuery = JSON.stringify(req.query);
 
-  // Sanitize request body
   if (req.body) {
     req.body = sanitizeObject(req.body);
     if (JSON.stringify(req.body) !== originalBody) {
@@ -37,7 +34,6 @@ const xssSanitizer = (req, res, next) => {
     }
   }
 
-  // Sanitize query parameters
   if (req.query) {
     req.query = sanitizeObject(req.query);
     if (JSON.stringify(req.query) !== originalQuery) {
@@ -45,7 +41,6 @@ const xssSanitizer = (req, res, next) => {
     }
   }
 
-  // Log potential XSS attempts
   if (sanitized) {
     logger.warn('XSS attempt detected and sanitized', {
       ip: req.ip,
@@ -59,9 +54,7 @@ const xssSanitizer = (req, res, next) => {
   next();
 };
 
-// Combined sanitization middleware
 const sanitizationMiddleware = [
-  // MongoDB injection protection
   mongoSanitize({
     replaceWith: '_',
     onSanitize: ({ req, key }) => {
@@ -75,7 +68,6 @@ const sanitizationMiddleware = [
     }
   }),
   
-  // XSS protection
   xssSanitizer
 ];
 

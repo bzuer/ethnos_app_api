@@ -8,7 +8,6 @@ function createMockReq({
   params = {},
   body = {},
 } = {}) {
-  // Minimal req shape used by our middlewares/controllers
   return {
     method,
     originalUrl: path,
@@ -45,7 +44,6 @@ function createMockRes() {
       return this;
     },
     json(payload) {
-      // Base json: record body and resolve any waiting promise
       this.body = payload;
       this.__sent = true;
       if (typeof this.__resolve === 'function') {
@@ -58,7 +56,6 @@ function createMockRes() {
 }
 
 function withResponseFormatter(req, res) {
-  // Attach success/fail/error + envelope behavior to res
   responseFormatter(req, res, () => {});
   return res;
 }

@@ -1,18 +1,12 @@
 #!/usr/bin/env node
-/**
- * Validates that the minimum database structures required by the API exist.
- * Checks tables, columns, views, and critical indexes referenced by the
- * service layer and endpoint tests.
- */
+
 
 const path = require('path');
 const mysql = require('mysql2/promise');
 
 try {
-  // Prefer system-wide env file
   require('dotenv').config({ path: '/etc/node-backend.env' });
 } catch (error) {
-  // dotenv is optional; ignore if not available
 }
 
 const REQUIRED_TABLES = {
@@ -74,12 +68,10 @@ const REQUIRED_TABLES = {
   }
 };
 
-// Optional Sphinx resources. In simplified deployments we use sphinx_*_summary tables
-// instead of v_sphinx_* views. Treat as warnings if neither alternative exists.
 const OPTIONAL_SPHINX_RESOURCES = [
   ['v_sphinx_works_index', 'sphinx_works_summary'],
   ['v_sphinx_persons_index', 'sphinx_persons_summary'],
-  ['v_sphinx_publications_index'] // optional; not required in unified config
+  ['v_sphinx_publications_index']
 ];
 
 function formatResult(result) {
@@ -144,7 +136,6 @@ async function main() {
     const viewNameKey = Object.keys(viewRows[0] || { 'Tables_in_db': '' })[0];
     const availableViews = new Set(viewRows.map(row => row[viewNameKey]));
 
-    // Also read regular tables to allow table alternatives for Sphinx
     const [tblRows] = await connection.query('SHOW TABLES');
     const tblNameKey = Object.keys(tblRows[0] || { 'Tables_in_db': '' })[0];
     const availableTbls = new Set(tblRows.map(row => row[tblNameKey]));

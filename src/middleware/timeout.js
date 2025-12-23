@@ -1,5 +1,3 @@
-// Simple request timeout middleware without extra dependencies
-// Usage: app.use(requestTimeout({ timeoutMs: 5000 }))
 
 function requestTimeout(opts = {}) {
   const timeoutMs = parseInt(process.env.REQUEST_TIMEOUT_MS || opts.timeoutMs || 5000);
@@ -20,7 +18,6 @@ function requestTimeout(opts = {}) {
           timestamp: new Date().toISOString(),
         });
       } catch (_) {
-        // ignore
       }
     }, timeoutMs);
 
@@ -28,10 +25,9 @@ function requestTimeout(opts = {}) {
     res.on('finish', clear);
     res.on('close', clear);
 
-    // Prevent handlers from sending a second response after timeout
     const originalJson = res.json.bind(res);
     res.json = function (...args) {
-      if (timedOut) return; // drop late responses
+      if (timedOut) return;
       return originalJson(...args);
     };
 

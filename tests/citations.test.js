@@ -3,8 +3,8 @@ const { createHttpClient } = require('./helpers/http-client');
 const request = createHttpClient(app);
 
 describe('Citations Endpoints', () => {
-  const WORK_WITH_CITATIONS = 22; // Work ID that has citation data
-  const WORK_WITHOUT_DATA = 999999; // Non-existent work ID
+  const WORK_WITH_CITATIONS = 22;
+  const WORK_WITHOUT_DATA = 999999;
   
   describe('GET /works/:id/citations', () => {
     it('should return citations for a work with valid structure', async () => {
@@ -20,7 +20,6 @@ describe('Citations Endpoints', () => {
       expect(Array.isArray(res.body.data.citing_works)).toBe(true);
       expect(res.body.meta.request.path).toContain(`/works/${WORK_WITH_CITATIONS}/citations`);
       
-      // Validate citation structure
       if (res.body.data.citing_works.length > 0) {
         const citation = res.body.data.citing_works[0];
         expect(citation).toHaveProperty('citing_work_id');
@@ -86,7 +85,6 @@ describe('Citations Endpoints', () => {
       expect(Array.isArray(res.body.data.referenced_works)).toBe(true);
       expect(res.body.meta.request.path).toContain(`/works/${WORK_WITH_CITATIONS}/references`);
       
-      // Validate reference structure
       if (res.body.data.referenced_works.length > 0) {
         const reference = res.body.data.referenced_works[0];
         expect(reference).toHaveProperty('cited_work_id');
@@ -173,7 +171,7 @@ describe('Citations Endpoints', () => {
       if (res.body.data.citing_works.length > 0) {
         const citation = res.body.data.citing_works[0];
         if (citation.citation.context) {
-          expect(citation.citation.context.length).toBeLessThanOrEqual(203); // 200 chars + '...' = 203
+          expect(citation.citation.context.length).toBeLessThanOrEqual(203);
         }
       }
     });
@@ -181,9 +179,8 @@ describe('Citations Endpoints', () => {
 
   describe('Edge Cases', () => {
     it('should handle works with citations but no references', async () => {
-      // Test with a work that has incoming citations but no outgoing references
       const res = await request()
-        .get('/works/2390919/references') // This work is cited by work 22
+        .get('/works/2390919/references')
         .expect(200);
 
       expect(res.body).toHaveProperty('status', 'success');

@@ -50,7 +50,6 @@ const ERROR_CODES = {
   FORBIDDEN: 'FORBIDDEN',
   TIMEOUT: 'TIMEOUT',
   
-  // Courses error codes
   COURSES_LIST_FAILED: 'COURSES_LIST_FAILED',
   COURSE_NOT_FOUND: 'COURSE_NOT_FOUND',
   COURSE_DETAILS_FAILED: 'COURSE_DETAILS_FAILED',
@@ -59,7 +58,6 @@ const ERROR_CODES = {
   COURSE_SUBJECTS_FAILED: 'COURSE_SUBJECTS_FAILED',
   COURSES_STATISTICS_FAILED: 'COURSES_STATISTICS_FAILED',
   
-  // Instructors error codes
   INSTRUCTORS_LIST_FAILED: 'INSTRUCTORS_LIST_FAILED',
   INSTRUCTOR_NOT_FOUND: 'INSTRUCTOR_NOT_FOUND',
   INSTRUCTOR_DETAILS_FAILED: 'INSTRUCTOR_DETAILS_FAILED',
@@ -69,7 +67,6 @@ const ERROR_CODES = {
   INSTRUCTOR_STATISTICS_FAILED: 'INSTRUCTOR_STATISTICS_FAILED',
   INSTRUCTORS_STATISTICS_FAILED: 'INSTRUCTORS_STATISTICS_FAILED',
   
-  // Metrics error codes
   METRICS_ANNUAL_FAILED: 'METRICS_ANNUAL_FAILED',
   METRICS_VENUES_FAILED: 'METRICS_VENUES_FAILED',
   METRICS_INSTITUTIONS_FAILED: 'METRICS_INSTITUTIONS_FAILED',
@@ -77,7 +74,6 @@ const ERROR_CODES = {
   METRICS_COLLABORATIONS_FAILED: 'METRICS_COLLABORATIONS_FAILED',
   DASHBOARD_SUMMARY_FAILED: 'DASHBOARD_SUMMARY_FAILED',
   
-  // Dashboard error codes
   DASHBOARD_OVERVIEW_FAILED: 'DASHBOARD_OVERVIEW_FAILED',
   DASHBOARD_PERFORMANCE_FAILED: 'DASHBOARD_PERFORMANCE_FAILED',
   DASHBOARD_TRENDS_FAILED: 'DASHBOARD_TRENDS_FAILED',
@@ -126,7 +122,6 @@ const normalizeBoolean = (key, value) => {
   return value;
 };
 
-// Only normalize dates for keys that are date-like
 const DATE_KEY_PATTERNS = [
   /(^|_)date$/i,
   /(^|_)datetime$/i,
@@ -159,17 +154,14 @@ const normalizeDate = (value) => {
       return null;
     }
 
-    // Already ISO 8601
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(trimmed)) {
       return trimmed;
     }
 
-    // Date without time (YYYY-MM-DD)
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
       return `${trimmed}T00:00:00.000Z`;
     }
 
-    // Do not coerce arbitrary strings into dates; handled selectively in normalizeValue
   }
 
   return value;
@@ -202,7 +194,6 @@ const normalizeValue = (key, value) => {
 
   if (typeof value === 'string' || value instanceof String) {
     const stringValue = value.toString();
-    // Only attempt date normalization for date-like keys
     if (isDateLikeKey(key)) {
       const normalizedDate = normalizeDate(stringValue);
       if (normalizedDate !== stringValue) {

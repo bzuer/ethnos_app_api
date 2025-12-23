@@ -5,10 +5,8 @@ const rateLimit = require('../middleware/rateLimiting');
 const { query, param } = require('express-validator');
 const { enhancedValidationHandler } = require('../middleware/validation');
 
-// Apply rate limiting to all courses routes
 router.use(rateLimit.generalLimiter);
 
-// Course listing validation
 const validateCoursesList = [
   query('search')
     .optional()
@@ -34,16 +32,12 @@ const validateCourseId = [
   enhancedValidationHandler
 ];
 
-// Course listing and search
 router.get('/', validateCoursesList, coursesController.getCourses);
 
-// Course statistics
 router.get('/statistics', coursesController.getCoursesStatistics);
 
-// Individual course details
 router.get('/:id', validateCourseId, coursesController.getCourseById);
 
-// Course relationships
 router.get('/:id/instructors', validateCourseId, coursesController.getCourseInstructors);
 router.get('/:id/bibliography', validateCourseId, coursesController.getCourseBibliography);
 router.get('/:id/subjects', validateCourseId, coursesController.getCourseSubjects);

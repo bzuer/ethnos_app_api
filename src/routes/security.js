@@ -112,7 +112,7 @@ router.get('/audit', requireAccessKey, (req, res) => {
     audit.metrics_protected = hasGuardInStack(metricsRouter, 'requireInternalAccessKey');
     const healthProtected = hasGuardInStack(healthRouter, 'requireInternalAccessKey');
     audit.health_protected = healthProtected;
-    audit.security_protected = true; // this router uses key guards on endpoints
+    audit.security_protected = true;
 
     const missing = Object.keys(audit).filter(k => audit[k] === false);
 
@@ -225,7 +225,6 @@ router.post('/unblock/:ip', requireAccessKey, (req, res) => {
   try {
     const { ip } = req.params;
     
-    // IP validation for IPv4 and IPv6
     const ipv4Pattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
     const ipv6Pattern = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/;
     

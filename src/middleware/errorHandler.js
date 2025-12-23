@@ -69,7 +69,6 @@ const sanitizePaths = (input) => {
   return input;
 };
 
-// Sensitive data patterns to mask in logs
 const SENSITIVE_PATTERNS = [
   /password[^a-zA-Z0-9]*[:=][^,}\s]*/gi,
   /token[^a-zA-Z0-9]*[:=][^,}\s]*/gi,
@@ -77,11 +76,10 @@ const SENSITIVE_PATTERNS = [
   /key[^a-zA-Z0-9]*[:=][^,}\s]*/gi,
   /authorization[^a-zA-Z0-9]*[:=][^,}\s]*/gi,
   /bearer\s+[a-zA-Z0-9.\-_]+/gi,
-  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, // Email addresses
-  /\b(?:\d{4}[-\s]?){3}\d{4}\b/g, // Credit card patterns
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+  /\b(?:\d{4}[-\s]?){3}\d{4}\b/g,
 ];
 
-// Function to sanitize sensitive data from logs
 const sanitizeLogData = (obj) => {
   if (typeof obj !== 'object' || obj === null) {
     if (typeof obj === 'string') {
@@ -98,7 +96,6 @@ const sanitizeLogData = (obj) => {
   for (const [key, value] of Object.entries(obj)) {
     const lowerKey = key.toLowerCase();
     
-    // Completely remove sensitive keys
     if (['password', 'token', 'secret', 'key', 'authorization', 'refreshtoken'].includes(lowerKey)) {
       sanitized[key] = '[REDACTED]';
     } else if (typeof value === 'string') {
@@ -113,7 +110,6 @@ const sanitizeLogData = (obj) => {
   return sanitized;
 };
 
-// Function to mask sensitive strings
 const maskSensitiveString = (str) => {
   let masked = str;
   for (const pattern of SENSITIVE_PATTERNS) {
@@ -128,15 +124,12 @@ const maskSensitiveString = (str) => {
   return masked;
 };
 
-// Custom format for production (sanitized)
 const productionFormat = winston.format.combine(
   winston.format.timestamp(),
   winston.format.errors({ stack: true }),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    // Sanitize all metadata
     const sanitizedMeta = sanitizeLogData(meta);
     
-    // In production, limit stack traces
     if (sanitizedMeta.stack && process.env.NODE_ENV === 'production') {
       const stackLines = sanitizedMeta.stack.split('\n');
       sanitizedMeta.stack = stackLines.slice(0, 3).join('\n') + '\n... [truncated for security]';
@@ -147,7 +140,6 @@ const productionFormat = winston.format.combine(
   })
 );
 
-// Development format (more verbose but still sanitized)
 const developmentFormat = winston.format.combine(
   winston.format.timestamp(),
   winston.format.errors({ stack: true }),
@@ -165,7 +157,6 @@ const logger = winston.createLogger({
   format: process.env.NODE_ENV === 'production' ? productionFormat : developmentFormat,
   defaultMeta: { service: 'ethnos.app' },
   transports: [
-    // Error logs com rotação diária
     new DailyRotateFile({
       filename: 'logs/error-%DATE%.log',
       datePattern: 'YYYY-MM-DD',
@@ -174,7 +165,6 @@ const logger = winston.createLogger({
       maxFiles: '14d',
       zippedArchive: true
     }),
-    // Logs combinados com rotação
     new DailyRotateFile({
       filename: 'logs/combined-%DATE%.log',
       datePattern: 'YYYY-MM-DD',
@@ -182,7 +172,6 @@ const logger = winston.createLogger({
       maxFiles: '7d',
       zippedArchive: true
     }),
-    // Logs de performance
     new DailyRotateFile({
       filename: 'logs/performance-%DATE%.log',
       datePattern: 'YYYY-MM-DD',
@@ -204,7 +193,6 @@ const logger = winston.createLogger({
   ],
 });
 
-// Disable console transport when in silent mode
 if (process.env.NODE_ENV !== 'production' && configuredLevel !== 'silent') {
   logger.add(new winston.transports.Console({
     format: winston.format.combine(
@@ -214,10 +202,8 @@ if (process.env.NODE_ENV !== 'production' && configuredLevel !== 'silent') {
   }));
 }
 
-// Global silent mode (no logs, no open handles) for tests
 if (configuredLevel === 'silent') {
   try {
-    // Remove all transports to avoid file handles in CI/tests
     for (const t of [...logger.transports]) {
       logger.remove(t);
     }

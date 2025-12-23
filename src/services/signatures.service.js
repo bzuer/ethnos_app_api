@@ -24,12 +24,10 @@ class SignaturesService {
         return cached;
       }
 
-      // Phase 2: Use Sphinx for search optimization (Author disambiguation performance)
       if (search) {
         return await this.searchSignaturesSphinx(search, { limit, offset, sortBy, sortOrder });
       }
 
-      // For non-search requests, use original MariaDB approach (supports light mode)
       return await this.getSignaturesFallback({ limit, offset, search, sortBy, sortOrder, includeCounts });
 
     } catch (error) {
@@ -38,16 +36,12 @@ class SignaturesService {
     }
   }
 
-  /**
-   * Phase 2: High-performance signatures search using Sphinx signatures_poc index
-   * Improves author disambiguation and signature matching performance
-   */
+  
   async searchSignaturesSphinx(searchTerm, options = {}) {
     const { limit = 20, offset = 0, sortBy = 'signature', sortOrder = 'ASC' } = options;
     const cacheKey = `signatures:sphinx:${searchTerm}:${JSON.stringify(options)}`;
 
     try {
-      // IDs from Sphinx
       const spx = await sphinxService.searchSignatureIds(searchTerm, { limit, offset });
       const ids = Array.isArray(spx?.ids) ? spx.ids : [];
       const total = parseInt(spx?.total || 0, 10) || 0;
@@ -68,7 +62,6 @@ class SignaturesService {
         return empty;
       }
 
-      // Hydrate via MariaDB preserving order
       const orderField = `FIELD(s.id, ${ids.map(() => '?').join(',')})`;
       const [rows] = await sequelize.query(`
         SELECT s.id, s.signature, s.created_at
@@ -99,9 +92,7 @@ class SignaturesService {
     }
   }
 
-  /**
-   * Fallback method using MariaDB for signatures search
-   */
+  
   async searchSignaturesFallback(searchTerm, options = {}) {
     const { limit = 20, offset = 0, sortBy = 'signature', sortOrder = 'ASC' } = options;
     
@@ -153,9 +144,7 @@ class SignaturesService {
     };
   }
 
-  /**
-   * Non-search signatures retrieval using original MariaDB approach
-   */
+  
   async getSignaturesFallback(options = {}) {
     const { 
       limit = 20, 
@@ -267,7 +256,7 @@ class SignaturesService {
         return null;
       }
 
-      await cacheService.set(cacheKey, signature, 3600); // 1 hour
+      await cacheService.set(cacheKey, signature, 3600);
       logger.info(`Retrieved signature ${id}`);
       
       return signature;
@@ -322,7 +311,6 @@ class SignaturesService {
         type: sequelize.QueryTypes.SELECT
       });
 
-      // Check if signature exists when no persons found
       if (countResult.total === 0) {
         const signatureExists = await sequelize.query(`
           SELECT 1 FROM signatures WHERE id = ? LIMIT 1
@@ -332,7 +320,7 @@ class SignaturesService {
         });
         
         if (signatureExists.length === 0) {
-          return null; // Signature doesn't exist
+          return null;
         }
       }
 
@@ -346,7 +334,7 @@ class SignaturesService {
         }
       };
 
-      await cacheService.set(cacheKey, result, 1800); // 30 minutes
+      await cacheService.set(cacheKey, result, 1800);
       logger.info(`Retrieved ${persons.length} persons for signature ${signatureId}`);
       
       return result;
@@ -367,7 +355,6 @@ class SignaturesService {
         return cached;
       }
 
-      // Optimized: Use separate simpler queries instead of complex JOINs
       const [signatureStats, linkStats] = await Promise.all([
         sequelize.query(`
           SELECT 
@@ -396,7 +383,7 @@ class SignaturesService {
         unlinked_signatures: signatureStats[0].total_signatures - linkStats[0].linked_signatures
       };
 
-      await cacheService.set(cacheKey, stats, 172800); // 48 hours for signatures stats
+      await cacheService.set(cacheKey, stats, 172800);
       logger.info('Retrieved signature statistics');
       
       return stats;
@@ -527,7 +514,7 @@ class SignaturesService {
         }
       };
 
-      await cacheService.set(cacheKey, result, 3600); // 1 hour for relationships
+      await cacheService.set(cacheKey, result, 3600);
       logger.info(`Signature ${signatureId} works cached for 1 hour`);
       
       return result;
@@ -596,7 +583,7 @@ class SignaturesService {
         exact
       };
 
-      await cacheService.set(cacheKey, result, 1800); // 30 minutes
+      await cacheService.set(cacheKey, result, 1800);
       logger.info(`Found ${signatures.length} signatures matching search: ${searchTerm}`);
       
       return result;

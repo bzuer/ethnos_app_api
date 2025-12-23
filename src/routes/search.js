@@ -202,7 +202,6 @@ router.get('/global', commonValidations.searchQuery, enhancedValidationHandler, 
  */
 router.get('/persons', commonValidations.searchQuery, commonValidations.pagination, enhancedValidationHandler, searchController.searchPersons);
 
-// Organizations search via Sphinx disabled; use /organizations with search param
 
 /**
  * @swagger
@@ -347,7 +346,6 @@ const advancedSearch = async (req, res, next) => {
 
 router.get('/advanced', commonValidations.searchQuery, enhancedValidationHandler, advancedSearch);
 
-// Health check endpoint for search systems
 router.get('/health', async (req, res, next) => {
   try {
     const healthStatus = sphinxHealthCheck.getHealthStatus();
@@ -375,7 +373,6 @@ router.get('/health', async (req, res, next) => {
   }
 });
 
-// Autocomplete and suggestions endpoints
 const autocompleteService = require('../services/autocomplete.service');
 
 /**

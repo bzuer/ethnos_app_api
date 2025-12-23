@@ -21,7 +21,6 @@ class SubjectsService {
     const limitValue = Math.min(100, Number.parseInt(limit, 10) || 50);
     const offsetValue = Math.max(0, Number.parseInt(offset, 10) || 0);
 
-    // Light mode: return minimal subject list without aggregated metrics
     if (String(light || 'false').toLowerCase() === 'true') {
       const whereParts = [];
       const whereParams = [];
@@ -327,7 +326,6 @@ class SubjectsService {
 
     const [works] = await pool.execute(query, params);
 
-    // Ensure numeric type for relevance_score
     for (const w of works) {
       if (w.relevance_score !== undefined) {
         w.relevance_score = parseFloat(w.relevance_score);

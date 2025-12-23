@@ -1,7 +1,6 @@
 const { body, param, query, validationResult } = require('express-validator');
 const { logger } = require('./errorHandler');
 
-// XSS and HTML sanitization patterns
 const XSS_PATTERNS = [
   /<script[^>]*>.*?<\/script>/gi,
   /<iframe[^>]*>.*?<\/iframe>/gi,
@@ -16,7 +15,6 @@ const XSS_PATTERNS = [
   /onmouseover=/gi,
 ];
 
-// SQL injection patterns
 const SQL_INJECTION_PATTERNS = [
   /(\b(select|insert|update|delete|drop|create|alter|exec|execute|union|declare)\b)/gi,
   /(--|#|\*\/|\/\*)/g,
@@ -24,22 +22,19 @@ const SQL_INJECTION_PATTERNS = [
   /('|(\\')|(;)|(\\;))/g,
 ];
 
-// Sanitize input to prevent XSS and SQL injection
 const sanitizeInput = (value) => {
   if (typeof value !== 'string') return value;
   
   let sanitized = value;
   
-  // Remove XSS patterns
   XSS_PATTERNS.forEach(pattern => {
     sanitized = sanitized.replace(pattern, '');
   });
   
-  // Log potential SQL injection attempts
   SQL_INJECTION_PATTERNS.forEach(pattern => {
     if (pattern.test(sanitized)) {
       logger.warn('Potential SQL injection attempt detected', {
-        originalValue: value.substring(0, 100), // Log first 100 chars only
+        originalValue: value.substring(0, 100),
         sanitizedValue: sanitized.substring(0, 100),
         pattern: pattern.toString(),
         timestamp: new Date().toISOString(),
@@ -47,7 +42,6 @@ const sanitizeInput = (value) => {
     }
   });
   
-  // Only encode dangerous characters, preserve accents
   sanitized = sanitized
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
@@ -55,7 +49,6 @@ const sanitizeInput = (value) => {
   return sanitized.trim();
 };
 
-// Custom sanitizer middleware
 const sanitizeBody = (fields = []) => {
   return (req, res, next) => {
     if (req.body && typeof req.body === 'object') {
@@ -69,7 +62,6 @@ const sanitizeBody = (fields = []) => {
   };
 };
 
-// Validation error handler
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   
@@ -91,7 +83,7 @@ const handleValidationErrors = (req, res, next) => {
       errors: errorDetails.map(error => ({
         field: error.param,
         message: error.msg,
-        value: error.value ? '[FILTERED]' : undefined, // Don't expose the actual value
+        value: error.value ? '[FILTERED]' : undefined,
       })),
     });
   }
@@ -99,15 +91,12 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Common validation schemas
 const commonValidations = {
-  // ID parameter validation
   idParam: param('id')
     .isInt({ min: 1 })
     .withMessage('ID must be a positive integer')
     .toInt(),
 
-  // Pagination validation
   pagination: [
     query('page')
       .optional()
@@ -126,7 +115,6 @@ const commonValidations = {
       .toInt(),
   ],
 
-  // Search validation
   searchQuery: [
     query('q')
       .notEmpty()
@@ -134,7 +122,6 @@ const commonValidations = {
       .isLength({ min: 2, max: 200 })
       .withMessage('Search query must be between 2 and 200 characters')
       .custom(value => {
-        // Check for common injection patterns
         const suspiciousPatterns = [
           /[<>]/,
           /javascript:/i,
@@ -149,7 +136,6 @@ const commonValidations = {
         return true;
       })
       .customSanitizer(sanitizeInput),
-    // Removed generic type validation - will be handled by specific routes
     query('year')
       .optional()
       .isInt({ min: 1900, max: new Date().getFullYear() + 1 })
@@ -157,7 +143,6 @@ const commonValidations = {
       .toInt(),
   ],
 
-  // Email validation
   email: body('email')
     .isEmail()
     .withMessage('Please provide a valid email address')
@@ -165,14 +150,12 @@ const commonValidations = {
     .isLength({ max: 255 })
     .withMessage('Email must be less than 255 characters'),
 
-  // Strong password validation
   strongPassword: body('password')
     .isLength({ min: 8, max: 128 })
     .withMessage('Password must be between 8 and 128 characters')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
     .withMessage('Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character'),
 
-  // Text field validation (for names, titles, etc.)
   textField: (fieldName, options = {}) => {
     const { required = true, minLength = 1, maxLength = 255 } = options;
     
@@ -192,7 +175,6 @@ const commonValidations = {
       .customSanitizer(sanitizeInput);
   },
 
-  // URL validation
   url: (fieldName) => 
     body(fieldName)
       .optional()
@@ -201,7 +183,6 @@ const commonValidations = {
       .isLength({ max: 2083 })
       .withMessage(`${fieldName} URL is too long`),
 
-  // Date validation
   date: (fieldName, options = {}) => {
     const { required = true } = options;
     let validation = body(fieldName);
@@ -218,7 +199,6 @@ const commonValidations = {
       .toDate();
   },
 
-  // File upload validation
   fileUpload: [
     body('filename')
       .optional()
@@ -230,7 +210,6 @@ const commonValidations = {
   ],
 };
 
-// Rate limiting validation (check if user is making too many validation errors)
 const validationRateLimit = new Map();
 
 const trackValidationErrors = (req) => {
@@ -244,12 +223,10 @@ const trackValidationErrors = (req) => {
   const errors = validationRateLimit.get(clientId);
   errors.push(currentTime);
   
-  // Keep only errors from the last hour
   const oneHourAgo = currentTime - 60 * 60 * 1000;
   const recentErrors = errors.filter(time => time > oneHourAgo);
   validationRateLimit.set(clientId, recentErrors);
   
-  // If more than 20 validation errors in the last hour, log as suspicious
   if (recentErrors.length > 20) {
     logger.warn('Excessive validation errors detected', {
       ip: clientId,
@@ -260,7 +237,6 @@ const trackValidationErrors = (req) => {
   }
 };
 
-// Enhanced validation error handler with rate limiting
 const enhancedValidationHandler = (req, res, next) => {
   const errors = validationResult(req);
   
@@ -272,7 +248,6 @@ const enhancedValidationHandler = (req, res, next) => {
   next();
 };
 
-// Standard error response helper
 const standardErrorResponse = (res, statusCode, message, errors = null) => {
   const response = {
     status: 'error',

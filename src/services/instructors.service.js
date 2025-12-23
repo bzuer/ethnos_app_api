@@ -245,7 +245,6 @@ class InstructorsService {
 
     const [courses] = await pool.execute(query, params);
 
-    // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) as total
       FROM courses c
@@ -322,7 +321,6 @@ class InstructorsService {
 
     const [subjects] = await pool.execute(query, params);
 
-    // Get total count for pagination
     const countQuery = `
       SELECT COUNT(DISTINCT s.id) as total
       FROM subjects s
@@ -417,7 +415,6 @@ class InstructorsService {
       }
     }
 
-    // Get total count for pagination
     const countQuery = `
       SELECT COUNT(DISTINCT w.id) as total
       FROM works w

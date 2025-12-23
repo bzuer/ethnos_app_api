@@ -9,7 +9,6 @@ const getSampleBibliographyWorkId = async () => {
     .get('/bibliography?limit=1')
     .expect(200);
 
-  // Enforce contract before using the payload
   expectSuccessEnvelope(res.body, { paginated: true });
 
   const first = res.body.data[0];

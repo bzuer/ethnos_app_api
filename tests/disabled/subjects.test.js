@@ -122,7 +122,6 @@ describe('Subjects Endpoints', () => {
 
   describe('GET /subjects/:id/children', () => {
     it('should return subject children', async () => {
-      // First find a subject with children
       const subjectsResponse = await request(app)
         .get('/subjects?has_children=true&limit=1')
         .expect(200);
@@ -161,7 +160,7 @@ describe('Subjects Endpoints', () => {
 
         expect(Array.isArray(response.body)).toBe(true);
         if (response.body.length > 0) {
-          const hierarchyItem = response.body[response.body.length - 1]; // Last item should be the requested subject
+          const hierarchyItem = response.body[response.body.length - 1];
           expect(hierarchyItem).toHaveProperty('id', subjectId);
           expect(hierarchyItem).toHaveProperty('term');
           expect(hierarchyItem).toHaveProperty('vocabulary');
@@ -172,7 +171,6 @@ describe('Subjects Endpoints', () => {
 
   describe('GET /subjects/:id/works', () => {
     it('should return subject works', async () => {
-      // Find a subject with works
       const subjectsResponse = await request(app)
         .get('/subjects?limit=10')
         .expect(200);
@@ -218,7 +216,6 @@ describe('Subjects Endpoints', () => {
 
   describe('GET /subjects/:id/courses', () => {
     it('should return subject courses', async () => {
-      // Find a subject with courses
       const subjectsResponse = await request(app)
         .get('/subjects?limit=10')
         .expect(200);
@@ -296,19 +293,19 @@ describe('Subjects Endpoints', () => {
     it('should handle invalid limit parameter', async () => {
       await request(app)
         .get('/subjects?limit=abc')
-        .expect(200); // Should use default limit
+        .expect(200);
     });
 
     it('should handle invalid parent_id parameter', async () => {
       await request(app)
         .get('/subjects?parent_id=abc')
-        .expect(200); // Should ignore invalid parameter
+        .expect(200);
     });
 
     it('should handle invalid has_children parameter', async () => {
       await request(app)
         .get('/subjects?has_children=maybe')
-        .expect(200); // Should ignore invalid parameter
+        .expect(200);
     });
   });
 
@@ -321,7 +318,7 @@ describe('Subjects Endpoints', () => {
         .expect(200);
         
       const responseTime = Date.now() - startTime;
-      expect(responseTime).toBeLessThan(5000); // 5 seconds max
+      expect(responseTime).toBeLessThan(5000);
     });
 
     it('should respond within reasonable time for subject details', async () => {
@@ -338,7 +335,7 @@ describe('Subjects Endpoints', () => {
           .expect(200);
           
         const responseTime = Date.now() - startTime;
-        expect(responseTime).toBeLessThan(3000); // 3 seconds max
+        expect(responseTime).toBeLessThan(3000);
       }
     });
 
@@ -356,7 +353,7 @@ describe('Subjects Endpoints', () => {
           .expect(200);
           
         const responseTime = Date.now() - startTime;
-        expect(responseTime).toBeLessThan(2000); // 2 seconds max
+        expect(responseTime).toBeLessThan(2000);
       }
     });
   });

@@ -4,7 +4,6 @@ const { sequelize } = require('../src/models');
 
 describe('Signatures Endpoints', () => {
   beforeAll(async () => {
-    // Ensure database connection
     try {
       await sequelize.authenticate();
     } catch (error) {
@@ -184,7 +183,6 @@ describe('Signatures Endpoints', () => {
         const maxId = rows && rows[0] && rows[0].max_id ? parseInt(rows[0].max_id) : 0;
         nonExistentSignatureId = (Number.isFinite(maxId) ? maxId : 0) + 100000;
       } catch (_) {
-        // fall back to large ID if DB unavailable
         nonExistentSignatureId = 2147483647;
       }
     });
@@ -192,7 +190,6 @@ describe('Signatures Endpoints', () => {
       const response = await request(app)
         .get('/signatures/1')
         .expect((res) => {
-          // Accept both 200 (found) and 404 (not found) as valid responses
           expect([200, 404]).toContain(res.status);
         });
 
@@ -235,7 +232,6 @@ describe('Signatures Endpoints', () => {
       const response = await request(app)
         .get('/signatures/1/persons')
         .expect((res) => {
-          // Accept both 200 and 404 as valid responses
           expect([200, 404]).toContain(res.status);
         });
 
@@ -344,12 +340,10 @@ describe('Signatures Endpoints', () => {
         .expect(200);
       const endTime = Date.now();
 
-      expect(endTime - startTime).toBeLessThan(5000); // 5 seconds max
+      expect(endTime - startTime).toBeLessThan(5000);
     });
 
     it('should respect rate limiting', async () => {
-      // This test depends on rate limiting configuration
-      // Multiple rapid requests should be handled gracefully
       const requests = [];
       for (let i = 0; i < 5; i++) {
         requests.push(
@@ -367,8 +361,6 @@ describe('Signatures Endpoints', () => {
 
   describe('Error handling', () => {
     it('should handle database errors gracefully', async () => {
-      // This test would require mocking database failures
-      // For now, we just ensure the endpoint doesn't crash
       const response = await request(app)
         .get('/signatures')
         .timeout(10000);

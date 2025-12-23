@@ -17,7 +17,6 @@ class CitationsService {
         return cached;
       }
 
-      // Buscar obras que citam este work (incoming citations) usando hidratação via sphinx_works_summary
       const whereConditions = ['c.cited_work_id = :workId'];
       const replacements = { workId: parseInt(workId), limit: parseInt(limit), offset: parseInt(offset) };
       if (type !== 'all' && ['POSITIVE', 'NEUTRAL', 'NEGATIVE', 'SELF'].includes(String(type).toUpperCase())) {
@@ -103,7 +102,6 @@ class CitationsService {
         return cached;
       }
 
-      // Buscar obras citadas por este work (outgoing) com hidratação via sphinx_works_summary
       const referencedRows = await sequelize.query(`
         SELECT 
           c.cited_work_id,
@@ -175,7 +173,6 @@ class CitationsService {
         return cached;
       }
 
-      // First, check if the work exists (cheap guard to avoid expensive joins)
       const workExists = await sequelize.query(
         'SELECT id, title, work_type FROM works WHERE id = :workId LIMIT 1',
         { replacements: { workId: parseInt(workId) }, type: sequelize.QueryTypes.SELECT }
@@ -242,7 +239,6 @@ class CitationsService {
 
       const metrics = metricsData[0];
       
-      // Calculate impact metrics
       const citationsPerYear = metrics.year && metrics.first_citation_year ? 
         Math.max(1, new Date().getFullYear() - metrics.first_citation_year) : 1;
       
@@ -281,7 +277,6 @@ class CitationsService {
       
       return result;
     } catch (error) {
-      // Fail soft: return zeros/unknowns to avoid 500 while keeping observability
       logger.error(`Error fetching metrics for work ${workId}:`, error);
       try {
         const fallback = {
@@ -324,7 +319,6 @@ class CitationsService {
         return cached;
       }
 
-      // Build citation network with specified depth
       let networkData;
       try {
         const [rows] = await Promise.all([
@@ -377,7 +371,6 @@ class CitationsService {
         logger.warn('Recursive CTE not available, using 1-depth fallback for citation network', {
           error: cteError.message
         });
-        // Fallback: depth-1 direct edges only
         networkData = await sequelize.query(
           `SELECT 
             c.citing_work_id as source_work_id,
@@ -412,15 +405,12 @@ class CitationsService {
         }
       };
 
-      // Process network data
       const nodeSet = new Set();
       
       networkData.forEach(edge => {
-        // Add nodes
         nodeSet.add(edge.source_work_id);
         nodeSet.add(edge.target_work_id);
         
-        // Add edge
         result.edges.push({
           source: edge.source_work_id,
           target: edge.target_work_id,
@@ -430,7 +420,6 @@ class CitationsService {
           target_year: edge.target_year
         });
         
-        // Add node details if not exists
         if (!result.nodes[edge.source_work_id]) {
           result.nodes[edge.source_work_id] = {
             id: edge.source_work_id,
@@ -458,7 +447,6 @@ class CitationsService {
       return result;
     } catch (error) {
       logger.error(`Error fetching citation network for work ${workId}:`, error);
-      // Fail soft
       return {
         central_work_id: parseInt(workId),
         network_depth: parseInt(depth),

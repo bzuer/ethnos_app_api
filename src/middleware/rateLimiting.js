@@ -100,7 +100,6 @@ const honeypotMiddleware = (req, res, next) => {
   next();
 };
 
-// Introspection helpers
 const getViolationStats = () => ({
   disabled: disableRateLimiting,
   windowMs,

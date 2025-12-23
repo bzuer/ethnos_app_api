@@ -1,11 +1,6 @@
-/**
- * Metrics DTOs - Standardized data transfer objects for metrics and analytics resources
- * Following API v2 conventions: snake_case, consistent structure, stable shapes for charts
- */
 
-/**
- * Format annual statistics item
- */
+
+
 const formatAnnualStats = (stats) => {
   if (!stats) return null;
 
@@ -33,9 +28,7 @@ const formatAnnualStats = (stats) => {
   };
 };
 
-/**
- * Format venue ranking item
- */
+
 const formatVenueRanking = (venue, rank = null) => {
   if (!venue) return null;
 
@@ -59,9 +52,7 @@ const formatVenueRanking = (venue, rank = null) => {
   };
 };
 
-/**
- * Format institution productivity item
- */
+
 const formatInstitutionProductivity = (institution, rank = null) => {
   if (!institution) return null;
 
@@ -89,9 +80,7 @@ const formatInstitutionProductivity = (institution, rank = null) => {
   };
 };
 
-/**
- * Format person production item
- */
+
 const formatPersonProduction = (person, rank = null) => {
   if (!person) return null;
 
@@ -127,9 +116,7 @@ const formatPersonProduction = (person, rank = null) => {
   };
 };
 
-/**
- * Format collaboration item
- */
+
 const formatCollaboration = (collaboration, rank = null) => {
   if (!collaboration) return null;
 
@@ -166,9 +153,7 @@ const formatCollaboration = (collaboration, rank = null) => {
   };
 };
 
-/**
- * Format dashboard summary
- */
+
 const formatDashboardSummary = (totals, recentTrends = []) => {
   return {
     totals: {
@@ -195,9 +180,7 @@ const formatDashboardSummary = (totals, recentTrends = []) => {
   };
 };
 
-/**
- * Calculate trend direction from array of values
- */
+
 const calculateTrendDirection = (values) => {
   if (values.length < 2) return 'insufficient_data';
   
@@ -209,9 +192,7 @@ const calculateTrendDirection = (values) => {
   return 'stable';
 };
 
-/**
- * Format Sphinx metrics for dashboard
- */
+
 const formatSphinxMetrics = (metrics) => {
   if (!metrics) return null;
 
@@ -237,29 +218,22 @@ const formatSphinxMetrics = (metrics) => {
   };
 };
 
-/**
- * Calculate overall health score from metrics
- */
+
 const calculateHealthScore = (metrics) => {
   let score = 100;
   
-  // Deduct for high error rate
   if (metrics.error_rate > 0.1) score -= 30;
   else if (metrics.error_rate > 0.05) score -= 15;
   
-  // Deduct for slow response times
   if (metrics.avg_response_time > 100) score -= 20;
   else if (metrics.avg_response_time > 50) score -= 10;
   
-  // Deduct for very high load
   if (metrics.queries_per_second > 1000) score -= 10;
   
   return Math.max(0, Math.min(100, score));
 };
 
-/**
- * Format time-series data for charts
- */
+
 const formatTimeSeriesData = (data, valueField, timeField = 'timestamp') => {
   return data.map(item => ({
     timestamp: new Date(item[timeField]).toISOString(),
@@ -268,9 +242,7 @@ const formatTimeSeriesData = (data, valueField, timeField = 'timestamp') => {
   })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 };
 
-/**
- * Format distribution data for charts
- */
+
 const formatDistributionData = (data, labelField, valueField) => {
   return data.map(item => ({
     label: item[labelField] || 'Unknown',

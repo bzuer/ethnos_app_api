@@ -85,7 +85,6 @@ class VenuesService {
       return new Map();
     }
 
-    // Base venue info (includes precomputed fields from venues table if available)
     const baseQuery = `
       SELECT
         v.id,
@@ -126,8 +125,6 @@ class VenuesService {
       LEFT JOIN organizations pub ON v.publisher_id = pub.id
       WHERE v.id IN (:venueIds)`;
 
-    // A safer minimal base query for environments missing optional columns or tables
-    // IMPORTANT: Do NOT reference optional tables here; keep it strictly to `venues`
     const fallbackBaseQuery = `
       SELECT
         v.id,
@@ -187,7 +184,6 @@ class VenuesService {
       FROM sphinx_venues_summary
       WHERE id IN (:venueIds)`;
 
-    // Prefer view for aggregated venue metrics; fallback to yearly stats aggregation
     const venueRankingQuery = `
       SELECT 
         venue_id,
@@ -213,9 +209,7 @@ class VenuesService {
       WHERE venue_id IN (:venueIds)
       GROUP BY venue_id`;
 
-    // External identifiers now come directly from venues table columns
 
-    // Unique authors from view when available; fallback uses join later if needed
     const uniqueAuthorsFromView = `
       SELECT venue_id, unique_authors FROM v_venue_ranking WHERE venue_id IN (:venueIds)`;
     const uniqueAuthorsFallbackQuery = `
@@ -227,7 +221,6 @@ class VenuesService {
       WHERE pub.venue_id IN (:venueIds)
       GROUP BY pub.venue_id`;
 
-    // Optional subjects
     const subjectsQuery = `
       SELECT vs.venue_id, vs.subject_id, vs.score, s.term, s.vocabulary, s.lang
       FROM venue_subjects vs
@@ -298,10 +291,8 @@ class VenuesService {
     ]);
 
     const map = new Map();
-    // Index helpers
     const statsMap = new Map(statsRows.map(r => [r.venue_id, r]));
     const uniqueAuthorsMap = new Map(uniqueAuthorsRows.map(r => [r.venue_id, r.unique_authors]));
-    // Build identifiers list from venues columns
     const identifiersMap = new Map();
     for (const row of baseRows) {
       const list = [];
@@ -325,7 +316,6 @@ class VenuesService {
       subjectsMap.set(s.venue_id, list);
     }
 
-    // Yearly stats map
     const yearlyMap = new Map();
     for (const y of yearlyRows) {
       const list = yearlyMap.get(y.venue_id) || [];
@@ -443,7 +433,6 @@ class VenuesService {
       });
     }
 
-    // expose last enrichment warnings for callers to read
     this._lastEnrichmentWarnings = warnings;
     return map;
   }
@@ -481,7 +470,6 @@ class VenuesService {
       venue.is_in_doaj = Boolean(venue.is_in_doaj);
     }
 
-    // Publication summary: prefer database yearly_stats when available
     const yearly = Array.isArray(venue.yearly_stats) ? venue.yearly_stats : [];
     const trend = yearly.map(y => ({ year: y.year, works_count: y.works_count, oa_works_count: y.oa_works_count }));
     let firstYear = venue.coverage_start_year || null;
@@ -500,14 +488,10 @@ class VenuesService {
       publication_trend: trend
     };
 
-    // Top subjects (internal, DB-based)
     if (Array.isArray(venue.subjects)) {
       venue.top_subjects = venue.subjects.slice(0, 10);
     }
 
-    // Maintain existing metrics for compatibility (deprecated; internal only)
-    // Normalize works_count field for list and details
-    // works_count must reflect total works in database for this venue (precomputed column)
     venue.works_count = toInt(venue.works_count, 0);
 
     return venue;
@@ -521,7 +505,6 @@ class VenuesService {
 
     const existingMetrics = currentVenue.metrics || {};
     const newMetrics = enrichment?.metrics || {};
-    // Normalize works_count for merged structure; drop metrics from final output
     const mergedWorks = newMetrics.works_count ?? existingMetrics.works_count ?? merged.works_count ?? 0;
     merged.works_count = mergedWorks;
 
@@ -553,7 +536,6 @@ class VenuesService {
         }
         return this._mergeVenueData(venue, detail);
       });
-      // attach warnings for caller (array will drop this property on JSON.stringify)
       enriched.warnings = Array.isArray(this._lastEnrichmentWarnings) ? this._lastEnrichmentWarnings.slice(0) : [];
       return enriched;
     } catch (error) {
@@ -775,10 +757,7 @@ class VenuesService {
     }
   }
 
-  /**
-   * Phase 2 (Revised): Direct MariaDB venues retrieval for guaranteed consistency
-   * Eliminates Sphinx dependency and ensures roundtrip reliability
-   */
+  
   async getVenuesMariaDB(options = {}) {
     const {
       page = 1,
@@ -1145,11 +1124,7 @@ class VenuesService {
     }
   }
 
-  /**
-   * @deprecated - Sphinx method kept for reference but no longer used
-   * Phase 2: High-performance venues retrieval using Sphinx venues_metrics_poc index
-   * Solves 2.7s -> ~20ms performance improvement (135x faster)
-   */
+  
   async getVenuesSphinx(options = {}) {
     const pagination = normalizePagination(options);
     const { page, limit, offset } = pagination;
@@ -1165,7 +1140,6 @@ class VenuesService {
         sortOrder
       });
 
-      // Reconcile Sphinx IDs against MariaDB to avoid 404 on details
       const sphinxIds = Array.from(new Set((sphinxResponse.venues || []).map(v => v.id).filter(Boolean)));
       let existingIdSet = new Set(sphinxIds);
       let reconciliationWarnings = [];
@@ -1209,7 +1183,6 @@ class VenuesService {
 
       venues = await this._enrichVenues(venues, { includeSubjects: true });
 
-      // Compute total from MariaDB for consistency with statistics
       let totalFromDb = sphinxResponse.total;
       try {
         const [countRow] = await sequelize.query(
@@ -1246,9 +1219,7 @@ class VenuesService {
     }
   }
 
-  /**
-   * Fallback method using original MariaDB approach with ID reconciliation
-   */
+  
   async getVenuesFallback(options = {}) {
     const pagination = normalizePagination(options);
     const { page, limit, offset } = pagination;
@@ -1264,7 +1235,6 @@ class VenuesService {
       replacements.push(type);
     }
 
-    // Original fallback query without expensive subqueries
     const sortFields = {
       name: 'v.name',
       type: 'v.type',
@@ -1403,7 +1373,6 @@ class VenuesService {
 
       const venuePayload = this._mergeVenueData({}, enrichment);
 
-      // Optionally load recent works (latest 10 publications)
       let recentWorks = [];
       if (includeRecentWorks) {
         try {
@@ -1497,7 +1466,6 @@ class VenuesService {
       let warnings = Array.isArray(this._lastEnrichmentWarnings)
         ? Array.from(new Set(this._lastEnrichmentWarnings))
         : [];
-      // Do not expose expected base-schema fallbacks as warnings
       warnings = warnings.filter(w => !/Partial enrichment: base reduced/i.test(w));
 
       const response = { data: formatted };
@@ -1531,7 +1499,6 @@ class VenuesService {
         return cached;
       }
 
-      // Build where clause
       let whereClause = 'WHERE p.venue_id = ?';
       const params = [parseInt(venueId)];
 
@@ -1540,7 +1507,6 @@ class VenuesService {
         params.push(parseInt(year));
       }
 
-      // Get works
       const worksQuery = `
         SELECT 
           w.id,
@@ -1577,12 +1543,11 @@ class VenuesService {
           INNER JOIN publications p ON w.id = p.work_id
           ${whereClause}
         `, {
-          replacements: params.slice(0, -2), // Remove limit and offset for count
+          replacements: params.slice(0, -2),
           type: sequelize.QueryTypes.SELECT
         })
       ]);
 
-      // Get authors for the returned works (simplified query first)
       const workIds = works.map(w => w.id);
       let authorsData = [];
       
@@ -1612,7 +1577,6 @@ class VenuesService {
         }
       }
 
-      // Group authors by work_id (simplified)
       const authorsByWork = {};
       authorsData.forEach(author => {
         if (!authorsByWork[author.work_id]) {
@@ -1626,7 +1590,6 @@ class VenuesService {
         });
       });
 
-      // Process works with authors
       const worksWithAuthors = works.map(work => {
         const authors = (authorsByWork[work.id] || []).sort((a, b) => a.position - b.position);
         
@@ -1695,7 +1658,7 @@ class VenuesService {
         type: sequelize.QueryTypes.SELECT
       });
 
-      await cacheService.set(cacheKey, stats, 86400); // Cache for 24 hours
+      await cacheService.set(cacheKey, stats, 86400);
       logger.info('Retrieved venue statistics');
       
       return stats;

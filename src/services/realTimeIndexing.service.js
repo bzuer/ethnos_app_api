@@ -8,7 +8,6 @@ class RealTimeIndexingService {
         this.processing = false;
         this.maxRetries = 3;
         
-        // Start queue processing if enabled
         if (this.enabled && process.env.NODE_ENV !== 'test') {
             this.startQueueProcessor();
         }
@@ -37,7 +36,6 @@ class RealTimeIndexingService {
                 error: error.message
             });
             
-            // Add to retry queue
             this.addToRetryQueue('INSERT', workData);
             
             return { success: false, queued: true, error: error.message };
@@ -66,7 +64,6 @@ class RealTimeIndexingService {
                 error: error.message
             });
             
-            // Add to retry queue
             this.addToRetryQueue('UPDATE', { id: workId, ...updateData });
             
             return { success: false, queued: true, error: error.message };
@@ -81,7 +78,6 @@ class RealTimeIndexingService {
         try {
             await sphinxService.ensureConnection();
             
-            // SphinxQL DELETE from RT index
             const sql = `DELETE FROM works_rt WHERE id = ?`;
             await sphinxService.connection.query(sql, [workId]);
             
@@ -107,7 +103,7 @@ class RealTimeIndexingService {
             data,
             attempts: 0,
             added_at: new Date(),
-            next_retry: new Date(Date.now() + 5000) // 5 seconds
+            next_retry: new Date(Date.now() + 5000)
         });
         
         logger.debug('Added item to retry queue', { 
@@ -120,7 +116,7 @@ class RealTimeIndexingService {
     startQueueProcessor() {
         setInterval(() => {
             this.processRetryQueue();
-        }, 10000); // Process every 10 seconds
+        }, 10000);
         
         logger.info('Real-time indexing queue processor started');
     }
@@ -153,7 +149,6 @@ class RealTimeIndexingService {
                             break;
                     }
                     
-                    // Remove from queue on success
                     this.retryQueue = this.retryQueue.filter(i => i !== item);
                     
                     logger.info('Retry queue item processed successfully', {
@@ -166,7 +161,6 @@ class RealTimeIndexingService {
                     item.attempts++;
                     
                     if (item.attempts >= this.maxRetries) {
-                        // Remove failed item after max retries
                         this.retryQueue = this.retryQueue.filter(i => i !== item);
                         
                         logger.error('Retry queue item failed permanently', {
@@ -176,8 +170,7 @@ class RealTimeIndexingService {
                             error: error.message
                         });
                     } else {
-                        // Schedule next retry with exponential backoff
-                        const delay = Math.pow(2, item.attempts) * 5000; // 5s, 10s, 20s
+                        const delay = Math.pow(2, item.attempts) * 5000;
                         item.next_retry = new Date(Date.now() + delay);
                         
                         logger.warn('Retry queue item failed, scheduling retry', {

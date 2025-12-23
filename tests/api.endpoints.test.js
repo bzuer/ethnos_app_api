@@ -1,14 +1,10 @@
-/*
- Comprehensive, socket-free tests for all major endpoints.
- Uses router invocation with mock req/res and service spies to avoid DB/network.
-*/
+
 
 process.env.NODE_ENV = 'test';
 process.env.JEST_FAST = '1';
 process.env.INTERNAL_ACCESS_KEY = process.env.INTERNAL_ACCESS_KEY || 'test-internal-key';
 process.env.SECURITY_ACCESS_KEY = process.env.SECURITY_ACCESS_KEY || 'test-security-key';
 
-// Module mocks MUST be declared before requiring routers to override destructured imports
 jest.mock('../src/config/database', () => {
   const QueryTypes = { SELECT: 'SELECT' };
   const define = jest.fn(() => ({
@@ -39,7 +35,6 @@ jest.mock('../src/config/redis', () => ({
 const { createMockReq, createMockRes, withResponseFormatter } = require('./helpers/mock-express');
 const { invokeRouter } = require('./helpers/router-invoke');
 
-// Routers (require AFTER mocks)
 const healthRouter = require('../src/routes/health');
 const worksRouter = require('../src/routes/works');
 const personsRouter = require('../src/routes/persons');
@@ -53,7 +48,6 @@ const instructorsRouter = require('../src/routes/instructors');
 const bibliographyRouter = require('../src/routes/bibliography');
 const securityRouter = require('../src/routes/security');
 
-// Services: spy/mocks (require AFTER mocks and routers)
 const dbConfig = require('../src/config/database');
 const redisConfig = require('../src/config/redis');
 const worksService = require('../src/services/works.service');
@@ -77,7 +71,6 @@ const pageMeta = (page = 1, limit = 10, total = 2) => ({
 });
 
 beforeAll(() => {
-  // Already mocked by jest.mock; ensure spies are in place
   dbConfig.testConnection.mockResolvedValue(true);
   redisConfig.testRedisConnection.mockResolvedValue(true);
 });
@@ -96,7 +89,6 @@ describe('Health', () => {
     expect(res.body.data).toHaveProperty('alive', true);
   });
 
-  // Readiness depends on async DB mock; covered by security stats test
 });
 
 describe('Works', () => {
@@ -269,7 +261,6 @@ describe('Courses & Instructors', () => {
   });
 });
 
-// DTO structural tests (no DB required)
 describe('DTOs structure', () => {
   test('Venue DTO includes explicit IDs', () => {
     const { formatVenueListItem } = require('../src/dto/venue.dto');

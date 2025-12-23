@@ -58,7 +58,6 @@ describe('Venues API', () => {
         expect(Array.isArray(venue.terms)).toBe(true);
         expect(venue).toHaveProperty('keywords');
         expect(Array.isArray(venue.keywords)).toBe(true);
-        // Metrics object no longer present
         expect(venue.metrics).toBeUndefined();
         expect(venue.legacy_metrics).toBeUndefined();
       }
@@ -151,7 +150,6 @@ describe('Venues API', () => {
     let venueId;
 
     beforeAll(async () => {
-      // Get a venue ID from the list
       const response = await request()
         .get('/venues?limit=1');
       
@@ -192,7 +190,6 @@ describe('Venues API', () => {
       expect(Array.isArray(response.body.data.terms)).toBe(true);
       expect(response.body.data).toHaveProperty('keywords');
       expect(Array.isArray(response.body.data.keywords)).toBe(true);
-      // Metrics object removed
       expect(response.body.data.metrics).toBeUndefined();
       expect(response.body.data).toHaveProperty('publisher');
       expect(response.body.meta).toHaveProperty('includes');
@@ -242,8 +239,6 @@ describe('Venues API', () => {
     });
 
     it('reconciliation logic filters invalid IDs from Sphinx results', async () => {
-      // This test validates that if Sphinx returns IDs that don't exist in MariaDB,
-      // the reconciliation logic filters them out and the roundtrip test passes
       const list = await request()
         .get('/venues?limit=5')
         .expect(200);
@@ -251,7 +246,6 @@ describe('Venues API', () => {
       const ids = (list.body.data || []).map(v => v.id).filter(Boolean);
       expect(ids.length).toBeGreaterThan(0);
 
-      // All returned IDs should be valid (reconciliation should have filtered invalid ones)
       for (const id of ids) {
         const detail = await request()
           .get(`/venues/${id}`)
@@ -260,7 +254,6 @@ describe('Venues API', () => {
         expect(detail.body.data).toHaveProperty('id', id);
       }
 
-      // Check if reconciliation warnings are present in response meta
       if (list.body.meta && list.body.meta.warnings) {
         const reconciliationWarnings = list.body.meta.warnings.filter(w => 
           w.includes('reconciliation') || w.includes('Reconciliation')
@@ -276,7 +269,6 @@ describe('Venues API', () => {
     let venueWithWorks;
 
     beforeAll(async () => {
-      // Find a venue with works
       const response = await request()
         .get('/venues?limit=50');
       
@@ -480,7 +472,7 @@ describe('Venues API', () => {
       const endTime = Date.now();
       const responseTime = endTime - startTime;
       
-      expect(responseTime).toBeLessThan(2000); // 2 seconds max
+      expect(responseTime).toBeLessThan(2000);
     });
 
     it('should handle large offset efficiently', async () => {
@@ -493,7 +485,7 @@ describe('Venues API', () => {
       const endTime = Date.now();
       const responseTime = endTime - startTime;
       
-      expect(responseTime).toBeLessThan(3000); // 3 seconds max for large offset
+      expect(responseTime).toBeLessThan(3000);
     });
   });
 

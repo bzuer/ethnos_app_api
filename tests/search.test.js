@@ -86,7 +86,6 @@ describe('Search API', () => {
         .get('/search/organizations?q=universidade')
         .expect(404);
 
-      // Organizations search was disabled for performance optimization
       expect(res.body.message).toContain('find');
     });
   });
@@ -117,7 +116,6 @@ describe('Search API', () => {
       expect(Array.isArray(res.body.data.persons.results)).toBe(true);
       expect(Array.isArray(res.body.data.organizations.results)).toBe(true);
       
-      // Organizations should be empty due to performance optimization
       expect(res.body.data.organizations.total).toBe(0);
       expect(res.body.data.organizations.results).toEqual([]);
     });
@@ -129,7 +127,6 @@ describe('Search API', () => {
 
       expect(res.body.data.works.results.length).toBeLessThanOrEqual(3);
       expect(res.body.data.persons.results.length).toBeLessThanOrEqual(3);
-      // Organizations should be empty
       expect(res.body.data.organizations.results.length).toBe(0);
     });
 
@@ -153,7 +150,6 @@ describe('Search API', () => {
       const endTime = Date.now();
       const responseTime = endTime - startTime;
 
-      // Fast threshold when Sphinx integration is enabled; relaxed otherwise (MariaDB fallback)
       const maxResponse = sphinxIntegration ? 5000 : 10000;
       const maxQueryMs = sphinxIntegration ? 1000 : 6000;
 

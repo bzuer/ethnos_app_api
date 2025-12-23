@@ -32,7 +32,6 @@ describe('Works API Contracts', () => {
           venue: expect.objectContaining({
             name: expect.any(String)
           }),
-          // Campos expandidos específicos do endpoint /works
           data_source: expect.any(String)
         });
         expect(work).toHaveProperty('publication_year');
@@ -45,7 +44,6 @@ describe('Works API Contracts', () => {
         }
         expect(work).not.toHaveProperty('work_type');
         
-        // Verificar campos expandidos específicos do /works
         expect(work).toHaveProperty('first_author_id');
         expect(work).toHaveProperty('first_author_identifiers');
         expect(work).toHaveProperty('search_engine');
@@ -60,7 +58,6 @@ describe('Works API Contracts', () => {
       expectSuccessEnvelope(res.body, { paginated: true, meta: ['pagination_extras'] });
       expect(res.body.data.length).toBeGreaterThan(0);
       
-      // Verificar que todos os works retornados são do tipo ARTICLE
       res.body.data.forEach((work) => {
         expect(work.type).toBe('ARTICLE');
       });

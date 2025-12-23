@@ -19,7 +19,6 @@ class OrganizationsService {
         return cached;
       }
 
-      // Base organization row (avoids heavy views for test performance)
       const orgRows = await sequelize.query(withTimeout(`
         SELECT * FROM organizations WHERE id = :id
       `), {
@@ -33,7 +32,6 @@ class OrganizationsService {
 
       const organization = orgRows[0];
 
-      // Prefer institutional metrics from view; fallback to aggregation
       let metrics = {
         affiliated_authors_count: parseInt(organization.researcher_count || 0, 10) || 0,
         works_count: parseInt(organization.publication_count || 0, 10) || 0,
@@ -229,7 +227,6 @@ class OrganizationsService {
     const { page, limit, offset } = pagination;
     const { search, country_code, type } = filters;
     
-    // Bump cache namespace to reflect new default ordering (by researchers desc)
     const cacheKey = `organizations:v3:${JSON.stringify(filters)}`;
     
     try {
@@ -242,7 +239,6 @@ class OrganizationsService {
       const whereConditions = [];
       const countReplacements = {};
 
-      // Search path: prefer Sphinx when enabled and query >= 2; else FULLTEXT; LIKE as last resort
       if (search) {
         const sphinxEnabled = String(process.env.SPHINX_ENABLED || 'true').toLowerCase() !== 'false';
         const term = (search || '').trim();
@@ -367,7 +363,7 @@ class OrganizationsService {
       };
       result.performance.elapsed_ms = Date.now() - t0;
 
-      await cacheService.set(cacheKey, result, 14400); // 4 hours
+      await cacheService.set(cacheKey, result, 14400);
       logger.info('Organizations list cached for 4 hours');
       
       return result;
@@ -377,10 +373,7 @@ class OrganizationsService {
     }
   }
 
-  /**
-   * Search organizations using Sphinx for high-performance full-text search
-   * Provides 80-150x performance improvement over MariaDB LIKE queries
-   */
+  
   async searchOrganizationsSphinx(searchTerm, options = {}) {
     const pagination = normalizePagination(options);
     const { page, limit, offset } = pagination;
@@ -447,7 +440,6 @@ class OrganizationsService {
 
     } catch (error) {
       logger.error(`Sphinx organizations search failed for term "${searchTerm}":`, error);
-      // Try FULLTEXT before LIKE fallback
       try {
         return await this.searchOrganizationsFulltext(searchTerm, options);
       } catch (_) {
@@ -456,9 +448,7 @@ class OrganizationsService {
     }
   }
 
-  /**
-   * FULLTEXT (AGAINST) search on organizations.name
-   */
+  
   async searchOrganizationsFulltext(searchTerm, options = {}) {
     const pagination = normalizePagination(options);
     const { page, limit, offset } = pagination;
@@ -513,9 +503,7 @@ class OrganizationsService {
     };
   }
 
-  /**
-   * Fallback method using MariaDB LIKE when FULLTEXT is not available
-   */
+  
   async fallbackOrganizationsSearch(searchTerm, options = {}) {
     const pagination = normalizePagination(options);
     const { page, limit, offset } = pagination;
@@ -606,7 +594,6 @@ class OrganizationsService {
         return cached;
       }
 
-      // First check if organization exists
       const orgExists = await sequelize.query(`
         SELECT id FROM organizations WHERE id = :organizationId
       `, {

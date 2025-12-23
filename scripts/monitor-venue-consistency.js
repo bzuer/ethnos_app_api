@@ -1,13 +1,6 @@
 #!/usr/bin/env node
 
-/**
- * Script de monitoramento para verificar consistência dos dados de venues
- * 
- * Pode ser executado:
- * - Manualmente para verificação
- * - Via cron job para monitoramento contínuo
- * - Como parte de health checks
- */
+
 
 try { require('dotenv').config({ path: '/etc/node-backend.env' }); } catch (_) {}
 const { pool } = require('../src/config/database');
@@ -20,7 +13,6 @@ const logger = {
 
 async function checkConsistency() {
   try {
-    // Usar a view criada para verificação rápida
     const [summary] = await pool.execute('SELECT * FROM venue_metrics_summary');
     const stats = summary[0];
     
@@ -39,7 +31,6 @@ async function checkConsistency() {
     } else {
       logger.warn('⚠️ Inconsistências detectadas');
       
-      // Listar alguns exemplos de inconsistências
       const [inconsistencies] = await pool.execute(`
         SELECT id, name, stored_count, actual_count, count_inconsistent, coverage_inconsistent
         FROM venue_metrics_validation 
@@ -65,11 +56,9 @@ async function runAutoFix() {
   logger.info('Executando correção automática...');
   
   try {
-    // Executar o procedure de atualização geral
     await pool.execute('CALL update_all_venue_metrics()');
     logger.info('✅ Correção automática concluída');
     
-    // Verificar novamente
     const result = await checkConsistency();
     return result;
     
@@ -116,7 +105,6 @@ async function generateHealthReport() {
   }
 }
 
-// Função principal
 async function main() {
   const args = process.argv.slice(2);
   const command = args[0] || 'check';
@@ -138,15 +126,13 @@ async function main() {
         break;
         
       case 'watch':
-        // Modo de monitoramento contínuo
         logger.info('Iniciando monitoramento contínuo (Ctrl+C para parar)...');
-        const interval = parseInt(args[1]) || 300000; // 5 minutos por padrão
+        const interval = parseInt(args[1]) || 300000;
         
         setInterval(async () => {
           const result = await checkConsistency();
           if (result.status !== 'healthy') {
             logger.warn('Inconsistências detectadas durante monitoramento');
-            // Aqui poderia enviar alertas, emails, etc.
           }
         }, interval);
         break;
@@ -177,7 +163,6 @@ Exemplos:
   }
 }
 
-// Executar se chamado diretamente
 if (require.main === module) {
   main();
 }

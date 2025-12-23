@@ -12,13 +12,13 @@ class SphinxHealthCheckService {
         };
         
         this.rollbackThresholds = {
-            errorRate: 0.05,        // 5%
-            avgResponseTime: 100,   // 100ms
-            consecutiveFailures: 5  // 5 failures in a row
+            errorRate: 0.05,
+            avgResponseTime: 100,
+            consecutiveFailures: 5
         };
         
         this.rollbackActive = false;
-        this.checkInterval = 30000; // 30 seconds
+        this.checkInterval = 30000;
         this.recentChecks = [];
         this.maxRecentChecks = 20;
         this.recoverySuccessThreshold = 3;
@@ -38,7 +38,6 @@ class SphinxHealthCheckService {
             this.performHealthCheck();
         }, this.checkInterval);
         
-        // Initial check
         await this.performHealthCheck();
     }
 
@@ -86,7 +85,6 @@ class SphinxHealthCheckService {
     }
 
     async updateMetrics(responseTime, success, error) {
-        // Add to recent checks
         this.recentChecks.push({
             timestamp: new Date(),
             responseTime,
@@ -94,12 +92,10 @@ class SphinxHealthCheckService {
             error: error?.message || null
         });
         
-        // Keep only recent checks
         if (this.recentChecks.length > this.maxRecentChecks) {
             this.recentChecks = this.recentChecks.slice(-this.maxRecentChecks);
         }
         
-        // Update consecutive failures
         if (!success) {
             this.healthMetrics.consecutiveFailures++;
             this.healthMetrics.recentErrors.push({
@@ -108,13 +104,11 @@ class SphinxHealthCheckService {
                 responseTime
             });
             
-            // Keep only recent errors
             if (this.healthMetrics.recentErrors.length > 10) {
                 this.healthMetrics.recentErrors = this.healthMetrics.recentErrors.slice(-10);
             }
         }
         
-        // Calculate metrics from recent checks
         const successfulChecks = this.recentChecks.filter(c => c.success);
         const failedChecks = this.recentChecks.filter(c => !c.success);
         
@@ -156,10 +150,8 @@ class SphinxHealthCheckService {
             timestamp: new Date().toISOString()
         });
         
-        // Set environment variable to switch to MariaDB
         process.env.SEARCH_ENGINE = 'MARIADB';
         
-        // Send critical alert (implement based on notification system)
         await this.sendCriticalAlert('Sphinx Rollback Executed', {
             reason: rollbackReason,
             metrics: this.healthMetrics
@@ -213,12 +205,8 @@ class SphinxHealthCheckService {
     }
 
     async sendCriticalAlert(title, data) {
-        // Log critical alert (extend with email/Slack integration)
         logger.error(`CRITICAL ALERT: ${title}`, data);
         
-        // Could integrate with notification systems:
-        // await emailService.sendAlert(title, data);
-        // await slackService.sendAlert(title, data);
     }
 
     async manualRollback(reason = 'manual_intervention') {
@@ -235,18 +223,15 @@ class SphinxHealthCheckService {
     async manualRecovery() {
         logger.info('Manual recovery from rollback initiated');
         
-        // Test Sphinx health before recovery
         try {
             const status = await sphinxService.getStatus();
             if (!status.connected) {
                 throw new Error('Sphinx not ready for recovery');
             }
             
-            // Reset rollback state
             this.rollbackActive = false;
             delete process.env.SEARCH_ENGINE;
             
-            // Reset metrics
             this.healthMetrics.consecutiveFailures = 0;
             this.healthMetrics.errorRate = 0;
             this.healthMetrics.recentErrors = [];
@@ -267,7 +252,7 @@ class SphinxHealthCheckService {
             searchEngine: process.env.SEARCH_ENGINE || 'SPHINX',
             metrics: this.healthMetrics,
             thresholds: this.rollbackThresholds,
-            recentChecks: this.recentChecks.slice(-5) // Last 5 checks
+            recentChecks: this.recentChecks.slice(-5)
         };
     }
 }

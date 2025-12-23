@@ -84,7 +84,6 @@ function formatOrganizationListItem(row = {}) {
     name: normalizeString(row.name),
     type: normalizeType(row.type),
     location: normalizeLocation(row),
-    // Explicit fields from table
     ror_id: normalizeString(row.ror_id),
     wikidata_id: normalizeString(row.wikidata_id),
     openalex_id: normalizeString(row.openalex_id),

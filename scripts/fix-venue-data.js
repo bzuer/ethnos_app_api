@@ -1,14 +1,6 @@
 #!/usr/bin/env node
 
-/**
- * Script para corrigir dados inconsistentes dos venues
- * 
- * Este script:
- * 1. Atualiza works_count com dados reais da tabela publications
- * 2. Corrige período de cobertura (coverage_start_year/coverage_end_year)  
- * 3. Reconstrói a tabela venue_yearly_stats com dados corretos
- * 4. Atualiza métricas de citações
- */
+
 
 try { require('dotenv').config({ path: '/etc/node-backend.env' }); } catch (_) {}
 const { pool } = require('../src/config/database');
@@ -89,18 +81,15 @@ async function fixCoveragePeriod() {
 async function rebuildYearlyStats() {
   logger.info('Reconstruindo venue_yearly_stats...');
   
-  // Primeiro, backup dos dados antigos (opcional)
   logger.info('Criando backup da tabela venue_yearly_stats...');
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS venue_yearly_stats_backup_${new Date().toISOString().slice(0,10).replace(/-/g,'')} 
     AS SELECT * FROM venue_yearly_stats
   `);
   
-  // Limpar dados antigos
   await pool.execute('DELETE FROM venue_yearly_stats');
   logger.info('Dados antigos removidos da venue_yearly_stats');
   
-  // Inserir dados corretos
   const [result] = await pool.execute(`
     INSERT INTO venue_yearly_stats (venue_id, year, works_count, oa_works_count, cited_by_count)
     SELECT 
@@ -169,7 +158,6 @@ async function generateReport() {
     console.log(`${stat.metric}: ${stat.value}`);
   });
   
-  // Verificar se ainda há inconsistências
   const finalCheck = await verifyInconsistencies();
   console.log('\n=== VERIFICAÇÃO FINAL ===');
   if (finalCheck.count_inconsistencies === 0 && finalCheck.coverage_inconsistencies === 0) {
@@ -187,23 +175,18 @@ async function main() {
   try {
     logger.info('=== INICIANDO CORREÇÃO DOS DADOS DE VENUES ===');
     
-    // Verificar inconsistências antes da correção
     await verifyInconsistencies();
     
-    // Perguntar confirmação (em ambiente de produção)
     if (process.env.NODE_ENV === 'production') {
       logger.warn('⚠️  Executando em ambiente de produção!');
       logger.warn('Este script irá modificar dados. Certifique-se de ter um backup.');
-      // Em um cenário real, adicionar prompt de confirmação aqui
     }
     
-    // Executar correções
     await fixWorksCount();
     await fixCoveragePeriod();
     await rebuildYearlyStats();
     await fixCitationCounts();
     
-    // Gerar relatório
     await generateReport();
     
     logger.info('=== CORREÇÃO CONCLUÍDA COM SUCESSO ===');
@@ -219,7 +202,6 @@ async function main() {
   }
 }
 
-// Executar script se chamado diretamente
 if (require.main === module) {
   main();
 }

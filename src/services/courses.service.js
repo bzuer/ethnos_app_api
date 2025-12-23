@@ -96,10 +96,8 @@ class CoursesService {
     const [countResult] = await pool.execute(countQuery, countParams);
     const total = countResult[0].total;
 
-    // Apply DTOs to format course data
     const formattedCourses = courses.map(formatCourseListItem);
     
-    // Calculate page number from offset
     const page = Math.floor(parseInt(offset) / parseInt(limit)) + 1;
     const pagination = createPagination(page, parseInt(limit), total);
 
@@ -258,7 +256,6 @@ class CoursesService {
       };
     }
 
-    // Format final course details with all enrichments
     const formattedCourse = formatCourseDetails(course, result);
     
     await cache.set(cacheKey, formattedCourse, 1800);
@@ -300,7 +297,6 @@ class CoursesService {
 
     const [instructors] = await pool.execute(query, params);
 
-    // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) as total
       FROM course_instructors ci
@@ -376,7 +372,6 @@ class CoursesService {
 
     const [bibliography] = await pool.execute(query, params);
 
-    // Process authors for each bibliography item
     for (const item of bibliography) {
       if (item.author_string) {
         const authors = item.author_string.split(';').map(name => name.trim());
@@ -388,7 +383,6 @@ class CoursesService {
       }
     }
 
-    // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) as total
       FROM course_bibliography cb
@@ -451,7 +445,6 @@ class CoursesService {
 
     const [subjects] = await pool.execute(query, params);
 
-    // Get total count for pagination
     const countQuery = `
       SELECT COUNT(DISTINCT s.id) as total
       FROM subjects s

@@ -1,7 +1,6 @@
 const { logger } = require('./errorHandler');
 const os = require('os');
 
-// Métricas em memória (em produção usar Redis ou sistema externo)
 const metrics = {
   requests: {
     total: 0,
@@ -16,7 +15,7 @@ const metrics = {
       relationships: { count: 0, total_time: 0, avg_time: 0, slow_count: 0 },
       search: { count: 0, total_time: 0, avg_time: 0, slow_count: 0 }
     },
-    query_alerts: [] // Track queries >500ms
+    query_alerts: []
   },
   system: {
     start_time: Date.now(),
@@ -36,21 +35,19 @@ const metrics = {
   },
   security: {
     suspicious_patterns: [],
-    sequential_scans: new Map(), // Track sequential ID scanning
-    rapid_requests: new Map(), // Track rapid fire requests
+    sequential_scans: new Map(),
+    rapid_requests: new Map(),
     blocked_attempts: 0,
     last_cleanup: Date.now()
   }
 };
 
-// Detect suspicious patterns
 const detectSuspiciousPatterns = (req) => {
   const ip = req.ip;
   const path = req.path;
   const userAgent = req.get('User-Agent') || '';
   const now = Date.now();
   
-  // Detect sequential ID scanning (e.g., /works/1, /works/2, /works/3...)
   const idPattern = /\/(\d+)(?:\/|$)/;
   const idMatch = path.match(idPattern);
   
@@ -69,10 +66,8 @@ const detectSuspiciousPatterns = (req) => {
     
     ipScans[baseEndpoint].push({ id: resourceId, timestamp: now });
     
-    // Keep only recent requests (last 5 minutes)
     ipScans[baseEndpoint] = ipScans[baseEndpoint].filter(scan => now - scan.timestamp < 5 * 60 * 1000);
     
-    // Check for sequential pattern
     if (ipScans[baseEndpoint].length >= 10) {
       const ids = ipScans[baseEndpoint].map(s => s.id).sort((a, b) => a - b);
       let sequential = 0;
@@ -100,7 +95,6 @@ const detectSuspiciousPatterns = (req) => {
     }
   }
   
-  // Detect rapid fire requests (many requests in short time)
   if (!metrics.security.rapid_requests.has(ip)) {
     metrics.security.rapid_requests.set(ip, []);
   }
@@ -108,11 +102,9 @@ const detectSuspiciousPatterns = (req) => {
   const ipRequests = metrics.security.rapid_requests.get(ip);
   ipRequests.push(now);
   
-  // Keep only requests from last minute
   const recentRequests = ipRequests.filter(timestamp => now - timestamp < 60 * 1000);
   metrics.security.rapid_requests.set(ip, recentRequests);
   
-  // Alert if more than 100 requests per minute from single IP
   if (recentRequests.length > 100) {
     logger.warn('Rapid fire requests detected', {
       ip,
@@ -122,7 +114,6 @@ const detectSuspiciousPatterns = (req) => {
     });
   }
   
-  // Detect suspicious user agents
   const suspiciousAgents = [
     'curl', 'wget', 'python-requests', 'bot', 'crawler', 'spider', 'scraper'
   ];
@@ -136,25 +127,20 @@ const detectSuspiciousPatterns = (req) => {
   }
 };
 
-// Middleware de monitoramento de performance
 const performanceMonitoring = (req, res, next) => {
   const startTime = Date.now();
   const endpoint = `${req.method} ${req.route?.path || req.path}`;
   
-  // Detect suspicious patterns
   detectSuspiciousPatterns(req);
   
-  // Incrementar contador de requests
   metrics.requests.total++;
   metrics.requests.by_endpoint[endpoint] = (metrics.requests.by_endpoint[endpoint] || 0) + 1;
   
-  // Override do res.end para capturar métricas
   const originalEnd = res.end;
   res.end = function(...args) {
     const responseTime = Date.now() - startTime;
     const statusCode = res.statusCode;
     
-    // Registrar métricas
     metrics.requests.by_status[statusCode] = (metrics.requests.by_status[statusCode] || 0) + 1;
     metrics.requests.response_times.push({
       endpoint,
@@ -163,12 +149,10 @@ const performanceMonitoring = (req, res, next) => {
       status: statusCode
     });
     
-    // Manter apenas os últimos 1000 tempos de resposta
     if (metrics.requests.response_times.length > 1000) {
       metrics.requests.response_times = metrics.requests.response_times.slice(-1000);
     }
     
-    // Log de performance para requests lentos (>1000ms)
     if (responseTime > 1000) {
       logger.warn('Slow request detected', {
         endpoint,
@@ -179,7 +163,6 @@ const performanceMonitoring = (req, res, next) => {
         severity: responseTime > 5000 ? 'CRITICAL' : responseTime > 3000 ? 'HIGH' : 'MEDIUM'
       });
       
-      // Critical alert for extremely slow requests >5s
       if (responseTime > 5000) {
         logger.error('CRITICAL: Extremely slow request detected', {
           endpoint,
@@ -190,7 +173,6 @@ const performanceMonitoring = (req, res, next) => {
       }
     }
     
-    // Log de performance geral
     logger.info('Request completed', {
       endpoint,
       response_time_ms: responseTime,
@@ -205,7 +187,6 @@ const performanceMonitoring = (req, res, next) => {
   next();
 };
 
-// Coletar métricas do sistema periodicamente
 const collectSystemMetrics = () => {
   const memUsage = process.memoryUsage();
   const cpuUsage = process.cpuUsage();
@@ -218,12 +199,10 @@ const collectSystemMetrics = () => {
     external: memUsage.external
   });
   
-  // Manter apenas os últimos 100 registros (aproximadamente 10 minutos se coletado a cada 6 segundos)
   if (metrics.system.memory_usage.length > 100) {
     metrics.system.memory_usage = metrics.system.memory_usage.slice(-100);
   }
   
-  // Alertas de memória com thresholds configuráveis
   const heapThresholdMB = parseInt(process.env.MEMORY_ALERT_THRESHOLD_MB) || 100;
   const criticalThresholdMB = parseInt(process.env.MEMORY_CRITICAL_THRESHOLD_MB) || 150;
   const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
@@ -250,12 +229,10 @@ const collectSystemMetrics = () => {
   }
 };
 
-// Middleware de tratamento de erros com métricas
 const errorMonitoring = (error, req, res, next) => {
   const errorType = error.constructor.name;
   const endpoint = `${req.method} ${req.route?.path || req.path}`;
   
-  // Registrar erro nas métricas
   metrics.errors.total++;
   metrics.errors.by_type[errorType] = (metrics.errors.by_type[errorType] || 0) + 1;
   metrics.errors.recent.push({
@@ -263,15 +240,13 @@ const errorMonitoring = (error, req, res, next) => {
     type: errorType,
     message: error.message,
     endpoint,
-    stack: error.stack?.split('\n')[0] // Apenas primeira linha do stack
+    stack: error.stack?.split('\n')[0]
   });
   
-  // Manter apenas os últimos 50 erros
   if (metrics.errors.recent.length > 50) {
     metrics.errors.recent = metrics.errors.recent.slice(-50);
   }
   
-  // Log do erro
   logger.error('Request error occurred', {
     error_type: errorType,
     error_message: error.message,
@@ -284,14 +259,12 @@ const errorMonitoring = (error, req, res, next) => {
   next(error);
 };
 
-// Endpoint para métricas (interno)
 const getMetrics = () => {
   const now = Date.now();
   const uptime = now - metrics.system.start_time;
   
-  // Calcular estatísticas de response time dos últimos 10 minutos
   const recentResponseTimes = metrics.requests.response_times
-    .filter(rt => (now - rt.timestamp) < 10 * 60 * 1000) // 10 minutos
+    .filter(rt => (now - rt.timestamp) < 10 * 60 * 1000)
     .map(rt => rt.time);
   
   const avgResponseTime = recentResponseTimes.length > 0 
@@ -348,16 +321,14 @@ const formatUptime = (uptimeMs) => {
   return `${seconds}s`;
 };
 
-// Classify endpoint type for metrics
 const getEndpointType = (path, method) => {
   if (path.includes('/search')) return 'search';
-  if (path.match(/\/\d+\/\w+$/)) return 'relationships'; // e.g., /persons/123/signatures
-  if (path.match(/\/\d+$/)) return 'details'; // e.g., /works/123
-  if (method === 'GET' && !path.match(/\/\d+/)) return 'listings'; // e.g., /works, /persons
+  if (path.match(/\/\d+\/\w+$/)) return 'relationships';
+  if (path.match(/\/\d+$/)) return 'details';
+  if (method === 'GET' && !path.match(/\/\d+/)) return 'listings';
   return 'other';
 };
 
-// Track performance by endpoint type
 const trackEndpointPerformance = (path, method, responseTime) => {
   const endpointType = getEndpointType(path, method);
   const perfMetrics = metrics.performance.by_endpoint_type[endpointType];
@@ -370,7 +341,6 @@ const trackEndpointPerformance = (path, method, responseTime) => {
     if (responseTime > 500) {
       perfMetrics.slow_count++;
       
-      // Track query alert
       metrics.performance.query_alerts.push({
         path,
         method,
@@ -379,7 +349,6 @@ const trackEndpointPerformance = (path, method, responseTime) => {
         endpointType
       });
       
-      // Keep only recent alerts (last 100)
       if (metrics.performance.query_alerts.length > 100) {
         metrics.performance.query_alerts.shift();
       }
@@ -394,7 +363,6 @@ const trackEndpointPerformance = (path, method, responseTime) => {
   }
 };
 
-// Função para resetar métricas
 const resetMetrics = () => {
   metrics.requests.total = 0;
   metrics.requests.by_endpoint = {};
@@ -424,12 +392,10 @@ const resetMetrics = () => {
   logger.info('Monitoring metrics reset');
 };
 
-// TTL cleanup para Maps de security
 const cleanupSecurityMaps = () => {
   const now = Date.now();
-  const ttlMs = parseInt(process.env.SECURITY_MAPS_TTL_MS) || 300000; // 5 min default
+  const ttlMs = parseInt(process.env.SECURITY_MAPS_TTL_MS) || 300000;
   
-  // Cleanup sequential_scans
   for (const [ip, scans] of metrics.security.sequential_scans.entries()) {
     for (const endpoint in scans) {
       scans[endpoint] = scans[endpoint].filter(scan => now - scan.timestamp < ttlMs);
@@ -442,7 +408,6 @@ const cleanupSecurityMaps = () => {
     }
   }
   
-  // Cleanup rapid_requests
   for (const [ip, requests] of metrics.security.rapid_requests.entries()) {
     const recentRequests = requests.filter(timestamp => now - timestamp < ttlMs);
     if (recentRequests.length === 0) {
@@ -459,7 +424,6 @@ const cleanupSecurityMaps = () => {
   });
 };
 
-// Iniciar coleta de métricas do sistema e cleanup (omitido em testes)
 if (process.env.NODE_ENV !== 'test') {
   const metricsInterval = parseInt(process.env.METRICS_COLLECT_INTERVAL_MS) || 6000;
   const cleanupInterval = parseInt(process.env.SECURITY_CLEANUP_INTERVAL_MS) || 60000;
@@ -479,5 +443,5 @@ module.exports = {
   getMetrics,
   resetMetrics,
   cleanupSecurityMaps,
-  metrics // Para testes
+  metrics
 };

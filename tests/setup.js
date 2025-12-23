@@ -30,14 +30,12 @@ const ensureBaseOrganizationRecord = async () => {
 };
 
 beforeAll(async () => {
-  // Skip heavy DB setup in fast/sandboxed test runs
   if (process.env.JEST_FAST === '1' || !process.env.DB_HOST) {
     console.warn('Skipping DB authenticate in test setup (JEST_FAST or no DB_HOST)');
     return;
   }
   try {
     await sequelize.authenticate({
-      // Short timeout to avoid hanging in CI/sandbox
       logging: false
     });
     await ensureBaseOrganizationRecord();

@@ -10,7 +10,6 @@ const { responseFormatter } = require('../../src/middleware/responseFormatter');
 
 const app = express();
 
-// Basic middleware for tests (no rate limiting)
 app.use(helmet());
 app.use(cors());
 app.use(compression());
@@ -18,10 +17,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(responseFormatter);
 
-// Performance monitoring for tests
 app.use(performanceMonitoring);
 
-// Routes
 const healthRoutes = require('../../src/routes/health');
 const worksRoutes = require('../../src/routes/works');
 const personsRoutes = require('../../src/routes/persons');
@@ -31,7 +28,6 @@ const metricsRoutes = require('../../src/routes/metrics');
 const citationsRoutes = require('../../src/routes/citations');
 const collaborationsRoutes = require('../../src/routes/collaborations');
 
-// Swagger documentation
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpecs = require('../../config/swagger.config');
 
@@ -46,7 +42,6 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
   customSiteTitle: "ethnos.app API - Documentation"
 }));
 
-// Apply routes without rate limiting for tests
 app.use('/api/health', healthRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/works', worksRoutes);
@@ -56,7 +51,6 @@ app.use('/api/metrics', metricsRoutes);
 app.use('/api', citationsRoutes);
 app.use('/api', collaborationsRoutes);
 
-// Direct mounts for backwards compatibility in tests
 app.use('/', citationsRoutes);
 app.use('/search', searchRoutes);
 app.use('/works', worksRoutes);

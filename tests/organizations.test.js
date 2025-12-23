@@ -39,7 +39,6 @@ describe('Organizations API', () => {
 
       expect(res.body).toHaveProperty('status', 'success');
       expect(res.body).toHaveProperty('data');
-      // Note: Just check that filter is accepted, data may vary
     });
 
     it('should accept type filter', async () => {
@@ -49,7 +48,6 @@ describe('Organizations API', () => {
 
       expect(res.body).toHaveProperty('status', 'success');
       expect(res.body).toHaveProperty('data');
-      // Note: Just check that filter is accepted, data may vary
     });
 
     it('should return 400 for invalid search length', async () => {

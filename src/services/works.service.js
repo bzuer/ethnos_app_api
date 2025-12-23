@@ -7,12 +7,7 @@ const { formatWorkListItem, formatWorkDetails } = require('../dto/work.dto');
 const { withTimeout } = require('../utils/db');
 
 class WorksService {
-  /**
-   * VITRINE - /works
-   * Propósito: Lista paginada com dados essenciais para navegação e decisão
-   * Ordenação: Por ano de publicação (2025→2024→...) depois por data de criação
-   * Performance: Query otimizada, dados mínimos necessários
-   */
+  
   async getWorks(filters = {}) {
     const t0 = Date.now();
     const pagination = normalizePagination(filters);
@@ -47,14 +42,7 @@ class WorksService {
     }
   }
 
-  /**
-   * COMPLETUDE - /works/:id
-   * Propósito: Todos os dados de uma obra específica
-   * Inclui: Autores completos, publicações, arquivos, métricas
-   * Nota: Citações e referências foram movidas para endpoints próprios
-   *       (/works/:id/citations e /works/:id/references) para otimização.
-   * Performance: Query complexa justificada pela completude dos dados
-   */
+  
   async getWorkById(id, options = {}) {
     const cacheKey = `work:complete:${id}`;
     
@@ -64,14 +52,13 @@ class WorksService {
         return cached;
       }
 
-      // COMPLETUDE Query - All related data for a single work
       const work = await this._getCompleteWorkData(id, options);
       
       if (!work) {
         return null;
       }
 
-      await cacheService.set(cacheKey, work, 7200); // 2h cache for complete data
+      await cacheService.set(cacheKey, work, 7200);
       return work;
 
     } catch (error) {
@@ -80,19 +67,14 @@ class WorksService {
     }
   }
 
-  // (removed duplicate getWorks shim that returned incomplete/null fields)
 
-  /**
-   * VITRINE OTIMIZADA - /works/vitrine
-   * Usa sphinx_works_summary para máxima performance
-   * Query única, sem JOINs, dados pré-compilados
-   */
+  
   async getWorksVitrine(filters = {}) {
     const t0 = Date.now();
     const pagination = normalizePagination(filters);
     const { page, limit, offset } = pagination;
     const { type, year_from, year_to, language } = filters;
-    const effectiveLimit = Math.min(limit, 100); // Vitrine permite até 100
+    const effectiveLimit = Math.min(limit, 100);
     
     const cacheKey = `works:vitrine:p${page}:l${effectiveLimit}:t${type || 'all'}:y${year_from || 'all'}-${year_to || 'all'}:lang${language || 'all'}`;
     
@@ -102,7 +84,6 @@ class WorksService {
         return cached;
       }
 
-      // Build WHERE conditions
       const whereConditions = ['author_string IS NOT NULL'];
       const queryParams = [];
 
@@ -126,14 +107,11 @@ class WorksService {
         queryParams.push(parseInt(year_to));
       }
 
-      // Efficient count strategy - avoid slow COUNT(*) on large table
       let totalItems = 0;
       
       if (queryParams.length === 0) {
-        // No filters - use pre-calculated estimate (2.5M records with authors)
         totalItems = 2499146;
       } else {
-        // With filters - fast count with LIMIT to avoid timeout
         const countSql = `
           SELECT COUNT(*) as total
           FROM (
@@ -149,11 +127,9 @@ class WorksService {
         });
         
         const limitedCount = parseInt(countResult?.total) || 0;
-        // Estimate total based on limited sample
         totalItems = limitedCount === 100000 ? limitedCount * 25 : limitedCount;
       }
 
-      // Main query - single table, no JOINs
       const selectSql = `
         SELECT 
           id,
@@ -185,7 +161,6 @@ class WorksService {
       
       const primaryQueryMs = Number(((process.hrtime.bigint() - primaryQueryStart) / BigInt(1e6)).toString());
 
-      // Format data - apenas campos da tabela sphinx_works_summary
       const formattedWorks = works.map(work => ({
         id: work.id,
         title: work.title,
@@ -216,7 +191,7 @@ class WorksService {
         }
       };
 
-      await cacheService.set(cacheKey, result, 1800); // 30min cache
+      await cacheService.set(cacheKey, result, 1800);
       return result;
 
     } catch (error) {
@@ -224,14 +199,10 @@ class WorksService {
     }
   }
 
-  /**
-   * VITRINE Query Implementation - Simplified for sphinx_works_summary table only
-   * Uses only fields available in the summary table for maximum performance
-   */
+  
   async _getWorksVitrine(filters, limit, offset, page) {
     const { type, year_from, year_to, search, open_access, language } = filters;
     
-    // Build WHERE conditions using only sphinx_works_summary fields
     let whereConditions = ['author_string IS NOT NULL'];
     const filterParams = [];
 
@@ -265,10 +236,8 @@ class WorksService {
       filterParams.push(open_access === 'true' || open_access === true ? 1 : 0);
     }
 
-    // Enforce a DB query timeout
     const dbTimeoutMs = parseInt(process.env.DB_QUERY_TIMEOUT_MS || '8000');
 
-    // Count total items
     const countSql = `
       SELECT COUNT(*) as total
       FROM sphinx_works_summary
@@ -284,7 +253,6 @@ class WorksService {
     ]);
     const totalItems = parseInt(countRow?.total) || 0;
 
-    // Main query - only fields from sphinx_works_summary
     const queryParams = [...filterParams, limit, offset];
     const selectSql = `
       SELECT 
@@ -317,7 +285,6 @@ class WorksService {
     ]);
     const primaryQueryMs = Number(((process.hrtime.bigint() - primaryQueryStart) / BigInt(1e6)).toString());
 
-    // Process works data - base from sphinx_works_summary
     const processedWorks = works.map(work => {
       const authors = work.author_string ? work.author_string.split(';').map(a => a.trim()) : [];
       
@@ -343,14 +310,12 @@ class WorksService {
       };
     });
 
-    // Hydrate publication snapshot (latest per work) and venue details
     let publicationsQueryMs = null;
     let authorsQueryMs = null;
     if (processedWorks.length > 0) {
       const ids = processedWorks.map(w => w.id);
       const placeholders = ids.map(() => '?').join(',');
 
-      // Publications + venues
       const pubsSql = `
         SELECT p1.work_id,
                p1.year AS publication_year,
@@ -400,7 +365,6 @@ class WorksService {
         }
       }
 
-      // First author identifiers
       const authorSql = `
         SELECT a.work_id,
                a.person_id AS first_author_id,
@@ -451,16 +415,12 @@ class WorksService {
     };
   }
 
-  /**
-   * COMPLETUDE Query Implementation - Complete work data for /works/:id
-   * Fetches ALL available data for a comprehensive work view
-   */
+  
   async _getCompleteWorkData(id, options = {}) {
     const includeCitations = options.includeCitations !== false;
     const includeReferences = options.includeReferences !== false;
     const startTime = process.hrtime.bigint();
     
-    // 1. Main work data with latest publication info and canonical identifiers (from main publication row)
     const [workData] = await sequelize.query(`
       SELECT 
         w.id,
@@ -532,7 +492,6 @@ class WorksService {
       return null;
     }
 
-    // 2. Complete authorship with affiliations and identifiers (parallelized)
     const authorsPromise = sequelize.query(`
       SELECT 
         a.person_id,
@@ -559,7 +518,6 @@ class WorksService {
       type: sequelize.QueryTypes.SELECT
     });
 
-    // 3. Subjects and keywords (parallelized)
     const subjectsPromise = sequelize.query(`
       SELECT 
         s.id as subject_id,
@@ -577,7 +535,6 @@ class WorksService {
       type: sequelize.QueryTypes.SELECT
     });
 
-    // 4. Funding (parallelized)
     const fundingPromise = sequelize.query(`
       SELECT 
         f.funder_id,
@@ -595,10 +552,7 @@ class WorksService {
       type: sequelize.QueryTypes.SELECT
     });
 
-    // 5-7. Citações e referências foram extraídas para serviços próprios
-    // (/works/:id/citations, /works/:id/references). Nada a carregar aqui.
 
-    // 8. Files and documents (parallelized)
     const filesPromise = sequelize.query(`
       SELECT 
         f.id as file_id,
@@ -639,7 +593,6 @@ class WorksService {
       type: sequelize.QueryTypes.SELECT
     });
 
-    // 9. Licenses (parallelized)
     const licensesPromise = sequelize.query(`
       SELECT 
         license_url,
@@ -654,7 +607,6 @@ class WorksService {
       type: sequelize.QueryTypes.SELECT
     });
 
-    // 10. Metrics (parallelized with fallback)
     const metricsPromise = (async () => {
       try {
         const [mrow] = await sequelize.query(`
@@ -672,7 +624,6 @@ class WorksService {
       return fallback || { citation_count: 0, reference_count: workData.reference_count || 0 };
     })();
 
-    // 11. Aggregate identifiers across ALL publications for this work (parallelized)
     const identifiersPromise = sequelize.query(`
       SELECT DISTINCT 
         doi, pmid, pmcid, arxiv, wos_id, handle, wikidata_id, openalex_id, mag_id
@@ -698,7 +649,6 @@ class WorksService {
       identifiersPromise
     ]);
 
-    // Fallback: if no subjects are stored, enrich from Sphinx summary keywords when available
     if (!subjectsData || subjectsData.length === 0) {
       try {
         const [spxRow] = await sequelize.query(
@@ -795,7 +745,6 @@ class WorksService {
       }) : [];
     } catch (_) {}
 
-    // Assemble complete work object
     const completeWork = {
       id: workData.id,
       title: workData.title,
@@ -887,11 +836,7 @@ class WorksService {
     return formatWorkDetails(completeWork);
   }
 
-  /**
-   * Fast MariaDB fallback for /works?search= when Sphinx is unavailable.
-   * Strategy: quick ID search (LIKE) -> batch hydrate details and publications for those IDs.
-   * Avoids COUNT(*) for speed; returns approximate total (page-local) to satisfy API contract.
-   */
+  
   async _getWorksSearchFallback(search, filters, limit, offset, page) {
     const { type, language, year_from, year_to } = filters || {};
     const trimmed = (search || '').trim();
@@ -902,7 +847,6 @@ class WorksService {
     const { pool } = require('../config/database');
     const dbTimeoutMs = parseInt(process.env.DB_QUERY_TIMEOUT_MS || '4000');
 
-    // Step 1: fetch candidate IDs quickly
     const where = ['w.title LIKE ?'];
     const params = [`%${trimmed}%`];
     if (type) { where.push('w.work_type = ?'); params.push(type); }
@@ -927,7 +871,6 @@ class WorksService {
       };
     }
 
-    // Step 2: hydrate essential work data for those IDs
     const placeholders = workIds.map(() => '?').join(',');
     const [works] = await pool.execute({
       sql: `
@@ -947,7 +890,6 @@ class WorksService {
       timeout: dbTimeoutMs
     }, workIds);
 
-    // Step 3: publication snapshot for those IDs (latest per work)
     let publicationsData = [];
     {
       const [pubs] = await pool.execute({
@@ -1001,7 +943,6 @@ class WorksService {
       };
     });
 
-    // Approximate total: page-local to avoid COUNT(*)
     const approxTotal = offset + processed.length;
     const items = processed.map(formatWorkListItem);
     return {
@@ -1011,15 +952,12 @@ class WorksService {
     };
   }
 
-  /**
-   * Sphinx search implementation - maintains existing search functionality
-   */
+  
   async _getWorksFromSphinx(search, filters) {
     const pagination = normalizePagination(filters);
     const { limit, offset } = pagination;
 
     try {
-      // 1) Query Sphinx for IDs only
       const spx = await SphinxService.searchWorkIds(search, {
         work_type: filters?.type,
         language: filters?.language,
@@ -1037,7 +975,6 @@ class WorksService {
         };
       }
 
-      // 2) Hydrate from MariaDB, preserving Sphinx order
       const { pool } = require('../config/database');
       const orderField = `FIELD(w.id, ${ids.map(() => '?').join(',')})`;
 
@@ -1060,7 +997,6 @@ class WorksService {
         timeout: parseInt(process.env.DB_QUERY_TIMEOUT_MS || '6000')
       }, [...ids, ...ids]);
 
-      // Publications snapshot (latest year per work)
       let publicationsData = [];
       const placeholders = ids.map(() => '?').join(',');
       const [pubs] = await pool.execute({
@@ -1129,7 +1065,6 @@ class WorksService {
     }
   }
 
-  // Bibliography method with normalized pagination
   async getWorkBibliography(workId, filters = {}) {
     const pagination = normalizePagination(filters);
     const { page, limit, offset } = pagination;
@@ -1185,12 +1120,10 @@ class WorksService {
       const { pool } = require('../config/database');
       const [bibliography] = await pool.execute({ sql: paginatedQuery, timeout: parseInt(process.env.DB_QUERY_TIMEOUT_MS || '3000') }, params);
 
-      // Total count (count number of grouped rows without LIMIT)
       const countQuery = `SELECT COUNT(*) as total FROM ( ${baseQuery} ${groupOrderClause} ) t`;
       const [countRows] = await pool.execute({ sql: countQuery, timeout: parseInt(process.env.DB_QUERY_TIMEOUT_MS || '3000') }, whereParams);
       const total = parseInt(countRows?.[0]?.total) || 0;
 
-      // Return with pagination metadata
       const result = {
         data: bibliography,
         pagination: createPagination(page, limit, total)

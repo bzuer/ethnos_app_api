@@ -170,7 +170,7 @@ describe('Collaborations Endpoints', () => {
         .expect(200);
       
       const responseTime = Date.now() - startTime;
-      expect(responseTime).toBeLessThan(10000); // 10 seconds max
+      expect(responseTime).toBeLessThan(10000);
     });
 
     it('should handle network analysis efficiently', async () => {
@@ -181,7 +181,7 @@ describe('Collaborations Endpoints', () => {
         .expect(200);
       
       const responseTime = Date.now() - startTime;
-      expect(responseTime).toBeLessThan(15000); // 15 seconds max for network analysis
+      expect(responseTime).toBeLessThan(15000);
     });
   });
 });

@@ -6,7 +6,6 @@ try { require('dotenv').config({ path: '/etc/node-backend.env' }); } catch (_) {
 
 const { logger } = require('./middleware/errorHandler');
 
-// Import existing app configuration
 const app = require('./app');
 
 const keyPath = path.join(__dirname, '../ssl/ethnos-api-key.pem');
@@ -25,7 +24,6 @@ if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
   });
 }
 
-// HTTPS Port from environment or default
 const HTTPS_PORT = process.env.HTTPS_PORT || 3443;
 const HTTP_PORT = process.env.PORT || 3000;
 
